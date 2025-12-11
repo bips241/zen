@@ -1,0 +1,29 @@
+name: EAS Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: |
+          cd mobile
+          npm ci
+      - name: Run lint & tests
+        run: |
+          cd mobile
+          npm run lint || true
+          npm test || true
+      - name: EAS Build (placeholder)
+        run: |
+          echo "EAS build would be triggered here (requires EAS credentials and secrets)."

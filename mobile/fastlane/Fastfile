@@ -1,0 +1,10 @@
+# Fastlane placeholder for Android AAB upload or automation
+default_platform(:android)
+
+platform :android do
+  desc "Upload AAB to Play Store internal track"
+  lane :upload_internal do
+    # TODO: implement supply/action with service account JSON
+    sh "echo 'fastlane upload stub'"
+  end
+end
