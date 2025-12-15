@@ -2,12 +2,12 @@
  * Custom Hooks - Database integration with React
  */
 
-import { useEffect, useState } from 'react';
-import { Q } from '@nozbe/watermelondb';
-import withObservables from '@nozbe/with-observables';
-import { collections } from '@/database';
-import Session from '@/database/models/Session';
-import DailyStats from '@/database/models/DailyStats';
+import { useEffect, useState } from "react";
+import { Q } from "@nozbe/watermelondb";
+import withObservables from "@nozbe/with-observables";
+import { collections } from "@/database";
+import Session from "@/database/models/Session";
+import DailyStats from "@/database/models/DailyStats";
 import {
   getCompletedSessions,
   getSessionsForDate,
@@ -15,7 +15,7 @@ import {
   getCurrentStreak,
   getAverageSessionDuration,
   getCompletionRate,
-} from '@/database/utils';
+} from "@/database/utils";
 
 /**
  * Hook to observe active session
@@ -29,15 +29,15 @@ export const useActiveSession = () => {
       try {
         const activeSessions = await collections.sessions
           .query(
-            Q.where('status', 'active'),
-            Q.sortBy('created_at', Q.desc),
+            Q.where("status", "active"),
+            Q.sortBy("created_at", Q.desc),
             Q.take(1)
           )
           .fetch();
 
         setSession(activeSessions.length > 0 ? activeSessions[0] : null);
       } catch (error) {
-        console.error('[useActiveSession] Error:', error);
+        console.error("[useActiveSession] Error:", error);
       } finally {
         setLoading(false);
       }
@@ -47,7 +47,7 @@ export const useActiveSession = () => {
 
     // Subscribe to changes
     const subscription = collections.sessions
-      .query(Q.where('status', 'active'))
+      .query(Q.where("status", "active"))
       .observe()
       .subscribe((sessions) => {
         setSession(sessions.length > 0 ? sessions[0] : null);
@@ -70,12 +70,12 @@ export const useRecentSessions = (limit: number = 10) => {
     const fetchRecent = async () => {
       try {
         const recent = await collections.sessions
-          .query(Q.sortBy('created_at', Q.desc), Q.take(limit))
+          .query(Q.sortBy("created_at", Q.desc), Q.take(limit))
           .fetch();
 
         setSessions(recent);
       } catch (error) {
-        console.error('[useRecentSessions] Error:', error);
+        console.error("[useRecentSessions] Error:", error);
       } finally {
         setLoading(false);
       }
@@ -85,7 +85,7 @@ export const useRecentSessions = (limit: number = 10) => {
 
     // Subscribe to changes
     const subscription = collections.sessions
-      .query(Q.sortBy('created_at', Q.desc), Q.take(limit))
+      .query(Q.sortBy("created_at", Q.desc), Q.take(limit))
       .observe()
       .subscribe((sessions) => {
         setSessions(sessions);
@@ -105,17 +105,17 @@ export const useTodayStats = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
 
     const fetchToday = async () => {
       try {
         const todayStats = await collections.dailyStats
-          .query(Q.where('date', today))
+          .query(Q.where("date", today))
           .fetch();
 
         setStats(todayStats.length > 0 ? todayStats[0] : null);
       } catch (error) {
-        console.error('[useTodayStats] Error:', error);
+        console.error("[useTodayStats] Error:", error);
       } finally {
         setLoading(false);
       }
@@ -125,7 +125,7 @@ export const useTodayStats = () => {
 
     // Subscribe to changes
     const subscription = collections.dailyStats
-      .query(Q.where('date', today))
+      .query(Q.where("date", today))
       .observe()
       .subscribe((stats) => {
         setStats(stats.length > 0 ? stats[0] : null);
@@ -150,7 +150,7 @@ export const useWeeklyStats = () => {
         const weeklyStats = await getStatsForLastDays(7);
         setStats(weeklyStats);
       } catch (error) {
-        console.error('[useWeeklyStats] Error:', error);
+        console.error("[useWeeklyStats] Error:", error);
       } finally {
         setLoading(false);
       }
@@ -197,7 +197,7 @@ export const useCompletionStats = () => {
           currentStreak: streak,
         });
       } catch (error) {
-        console.error('[useCompletionStats] Error:', error);
+        console.error("[useCompletionStats] Error:", error);
       } finally {
         setLoading(false);
       }
@@ -228,7 +228,7 @@ export const useSession = (sessionId: string | null) => {
         const s = await collections.sessions.find(sessionId);
         setSession(s);
       } catch (error) {
-        console.error('[useSession] Error:', error);
+        console.error("[useSession] Error:", error);
         setSession(null);
       } finally {
         setLoading(false);
@@ -254,7 +254,7 @@ export const useSessionsForDate = (date: string) => {
         const dateSessions = await getSessionsForDate(date);
         setSessions(dateSessions);
       } catch (error) {
-        console.error('[useSessionsForDate] Error:', error);
+        console.error("[useSessionsForDate] Error:", error);
       } finally {
         setLoading(false);
       }

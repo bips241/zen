@@ -1,6 +1,6 @@
-import { Database } from '@nozbe/watermelondb';
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { schema } from './schema';
+import { Database } from "@nozbe/watermelondb";
+import SQLiteAdapter from "@nozbe/watermelondb/adapters/sqlite";
+import { schema } from "./schema";
 import {
   Session,
   SessionEvent,
@@ -8,7 +8,7 @@ import {
   AppUsage,
   BlockedApp,
   Setting,
-} from './models';
+} from "./models";
 
 /**
  * Database Configuration - Offline-first database instance
@@ -29,17 +29,24 @@ const adapter = new SQLiteAdapter({
 // Create database instance
 export const database = new Database({
   adapter,
-  modelClasses: [Session, SessionEvent, DailyStats, AppUsage, BlockedApp, Setting],
+  modelClasses: [
+    Session,
+    SessionEvent,
+    DailyStats,
+    AppUsage,
+    BlockedApp,
+    Setting,
+  ],
 });
 
 // Export collections for easy access
 export const collections = {
-  sessions: database.get<Session>('sessions'),
-  sessionEvents: database.get<SessionEvent>('session_events'),
-  dailyStats: database.get<DailyStats>('daily_stats'),
-  appUsage: database.get<AppUsage>('app_usage'),
-  blockedApps: database.get<BlockedApp>('blocked_apps'),
-  settings: database.get<Setting>('settings'),
+  sessions: database.get<Session>("sessions"),
+  sessionEvents: database.get<SessionEvent>("session_events"),
+  dailyStats: database.get<DailyStats>("daily_stats"),
+  appUsage: database.get<AppUsage>("app_usage"),
+  blockedApps: database.get<BlockedApp>("blocked_apps"),
+  settings: database.get<Setting>("settings"),
 };
 
 /**
@@ -47,7 +54,7 @@ export const collections = {
  */
 export const getTodayDate = (): string => {
   const now = new Date();
-  return now.toISOString().split('T')[0];
+  return now.toISOString().split("T")[0];
 };
 
 /**
@@ -55,10 +62,10 @@ export const getTodayDate = (): string => {
  */
 export const getTodayStats = async (): Promise<DailyStats> => {
   const today = getTodayDate();
-  const { Q } = require('@nozbe/watermelondb');
-  
+  const { Q } = require("@nozbe/watermelondb");
+
   const existing = await collections.dailyStats
-    .query(Q.where('date', today))
+    .query(Q.where("date", today))
     .fetch();
 
   if (existing.length > 0) {

@@ -1,150 +1,220 @@
 /**
- * HomeShell Screen
- * 
- * Main launcher screen showing time and quick actions with database integration
+ * HomeShell Screen - Custom Launcher Home
+ *
+ * Minimalist launcher with 3 customizable rows:
+ * - Row 1: User's favorite apps (customizable)
+ * - Row 2: Focus/Productivity methods (Tratak, Pomodoro, Matrix, Forest)
+ * - Row 3: Essential actions (Call, Message, DND)
  */
 
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView, View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Button, Spacer } from '../components/atoms';
-import { ProgressBar } from '../components/molecules';
-import { colors, spacing } from '../theme';
-import { useCurrentSession, useStore } from '../store';
-import { useActiveSession, useTodayStats } from '../hooks/useDatabase';
-import sessionTracker from '../services/sessionTracker';
+import React, { useState, useEffect } from "react";
+import {
+  SafeAreaView,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { Text, Spacer } from "../components/atoms";
+import { colors, spacing } from "../theme";
+import { launcher } from "../services/nativeBridge";
 
-export default function HomeShell() {
+// Icon Component for Apps
+interface AppIconProps {
+  icon: string;
+  onPress: () => void;
+}
+
+const AppIcon: React.FC<AppIconProps> = ({ icon, onPress }) => (
+  <TouchableOpacity onPress={onPress} style={styles.appIcon}>
+    <Text style={styles.appIconEmoji}>{icon}</Text>
+  </TouchableOpacity>
+);
+
+// Row Container Component
+interface AppRowProps {
+  children: React.ReactNode;
+}
+
+const AppRow: React.FC<AppRowProps> = ({ children }) => (
+  <View style={styles.appRow}>{children}</View>
+);
+
+export default function HomeShell({ navigation }: any) {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const storeSession = useCurrentSession();
-  const { session: dbSession } = useActiveSession();
-  const { stats: todayStats } = useTodayStats();
-  const dailyGoal = useStore((state) => state.preferences.dailyGoalMinutes);
 
-  const currentSession = storeSession || dbSession;
-  const todayMinutes = todayStats?.totalFocusMinutes || 0;
+  // Hide system UI on mount
+  useEffect(() => {
+    // Initial hide
+    launcher.hideSystemUI();
 
-  // Update time every minute
+    // Re-hide periodically as a safety measure (less aggressive than before)
+    const interval = setInterval(() => {
+      launcher.hideSystemUI();
+    }, 3000); // Every 3 seconds instead of 500ms
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update time every second for smooth display
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const handleStartSession = async () => {
-    try {
-      await sessionTracker.startSession({
-        goalMinutes: 25,
-        allowBreaks: true,
-      });
-    } catch (error) {
-      console.error('Failed to start session:', error);
-    }
-  };
-
-  const handleEndSession = async () => {
-    try {
-      await sessionTracker.endSession();
-    } catch (error) {
-      console.error('Failed to end session:', error);
-    }
-  };
-
   const formatTime = (date: Date) => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
     return `${hours}:${minutes}`;
   };
 
-  const progress = dailyGoal > 0 ? todayMinutes / dailyGoal : 0;
+  const formatDate = (date: Date) => {
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return `${days[date.getDay()]}, ${
+      months[date.getMonth()]
+    } ${date.getDate()}`;
+  };
+
+  // App launch handlers
+  const handleLaunchApp = async (packageName: string) => {
+    try {
+      await launcher.launchApp(packageName);
+    } catch (error) {
+      console.error("Failed to launch app:", error);
+    }
+  };
+
+  // Focus method handlers
+  const handleTratak = () => {
+    // navigate to Tratak screen
+    try {
+      // @ts-ignore - navigation type from tab navigator
+      navigation.navigate("Tratak");
+    } catch (e) {
+      console.log("Navigation to Tratak failed", e);
+    }
+  };
+
+  const handlePomodoro = () => {
+    console.log("Open Pomodoro Timer");
+    // TODO: Navigate to Pomodoro screen
+  };
+
+  const handleMatrix = () => {
+    console.log("Open Eisenhower Matrix");
+    // TODO: Navigate to Matrix screen
+  };
+
+  const handleForest = () => {
+    console.log("Open Forest Focus");
+    // TODO: Navigate to Forest screen
+  };
+
+  // Essential action handlers
+  const handleCall = async () => {
+    await handleLaunchApp("com.google.android.dialer");
+  };
+
+  const handleMessage = async () => {
+    await handleLaunchApp("com.google.android.apps.messaging");
+  };
+
+  const handleDND = () => {
+    console.log("Toggle DND");
+    // TODO: Toggle Do Not Disturb mode
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.center}>
-        {/* Current Time */}
-        <Text variant="huge" style={styles.time}>
-          {formatTime(currentTime)}
-        </Text>
-
-        <Spacer size="sm" />
-
-        {/* Session Status */}
-        {currentSession ? (
-          <>
-            <Text variant="subheading" color={colors.accent}>
-              Focus Session Active
-            </Text>
-            <Spacer size="xs" />
-            <Text variant="small" color={colors.gray[500]}>
-              {'elapsedSeconds' in currentSession
-                ? `${Math.floor(currentSession.elapsedSeconds / 60)} / ${currentSession.goalMinutes} min`
-                : `${currentSession.actualMinutes} / ${currentSession.goalMinutes} min`}
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text variant="subheading" color={colors.gray[500]}>
-              {todayMinutes} min today
-            </Text>
-            <Spacer size="xs" />
-            <Text variant="small" color={colors.gray[600]}>
-              Goal: {dailyGoal} min
-            </Text>
-          </>
-        )}
-
-        <Spacer size="md" />
-
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <ProgressBar progress={progress} />
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Time Display - Large and Centered */}
+        <View style={styles.timeSection}>
+          <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+          <Spacer size="xs" />
+          <Text
+            variant="small"
+            color={colors.gray[500]}
+            style={styles.dateText}
+          >
+            {formatDate(currentTime)}
+          </Text>
         </View>
 
-        <Spacer size="xl" />
+        <Spacer size="xxl" />
 
-        {/* Session Control */}
-        {currentSession ? (
-          <Button
-            label="End Session"
-            onPress={handleEndSession}
-            variant="secondary"
+        {/* Row 1: User's Favorite Apps */}
+        <AppRow>
+          <AppIcon
+            icon="🌐"
+            onPress={() => handleLaunchApp("com.android.chrome")}
           />
-        ) : (
-          <Button
-            label="Start Focus"
-            onPress={handleStartSession}
-            variant="primary"
+          <AppIcon
+            icon="📦"
+            onPress={() => handleLaunchApp("com.google.android.gm")}
           />
-        )}
-      </View>
+          <AppIcon
+            icon="🔍"
+            onPress={() =>
+              handleLaunchApp("com.google.android.googlequicksearchbox")
+            }
+          />
+          <AppIcon
+            icon="⚙️"
+            onPress={() => handleLaunchApp("com.android.settings")}
+          />
+        </AppRow>
 
-      {/* Quick Actions Dock */}
-      <View style={styles.dock}>
-        <TouchableOpacity style={styles.action}>
-          <Text variant="small">📞</Text>
-          <Spacer size="xs" />
-          <Text variant="tiny" color={colors.gray[500]}>
-            Call
-          </Text>
-        </TouchableOpacity>
+        <Spacer size="lg" />
 
-        <TouchableOpacity style={styles.action}>
-          <Text variant="small">⏱️</Text>
-          <Spacer size="xs" />
-          <Text variant="tiny" color={colors.gray[500]}>
-            Timer
-          </Text>
-        </TouchableOpacity>
+        {/* Row 2: Focus & Productivity Methods */}
+        <AppRow>
+          <AppIcon icon="🕯️" onPress={handleTratak} />
+          <AppIcon icon="⏱️" onPress={handlePomodoro} />
+          <AppIcon icon="📊" onPress={handleMatrix} />
+          <AppIcon icon="🌳" onPress={handleForest} />
+        </AppRow>
 
-        <TouchableOpacity style={styles.action}>
-          <Text variant="small">🚨</Text>
-          <Spacer size="xs" />
-          <Text variant="tiny" color={colors.gray[500]}>
-            SOS
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <Spacer size="lg" />
+
+        {/* Row 3: Essential Actions */}
+        <AppRow>
+          <AppIcon icon="📞" onPress={handleCall} />
+          <AppIcon icon="💬" onPress={handleMessage} />
+          <AppIcon icon="🔕" onPress={handleDND} />
+        </AppRow>
+
+        <Spacer size="xxl" />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -152,30 +222,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.black,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
   },
-  center: {
+  scrollView: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  content: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
-  },
-  time: {
-    textAlign: 'center',
-  },
-  progressContainer: {
-    width: '80%',
-  },
-  dock: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
     paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[900],
+    justifyContent: "center",
   },
-  action: {
-    alignItems: 'center',
-    padding: spacing.md,
+  timeSection: {
+    alignItems: "center",
+    marginBottom: spacing.xxl,
+  },
+  timeText: {
+    fontSize: 72,
+    fontWeight: "200",
+    color: colors.white,
+    letterSpacing: -2,
+  },
+  dateText: {
+    fontSize: 16,
+    opacity: 0.6,
+  },
+  appRow: {
+    flexDirection: "row",
+    backgroundColor: colors.white,
+    borderRadius: 40,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    justifyContent: "space-around",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: colors.white,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  appIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 56,
+    height: 56,
+  },
+  appIconEmoji: {
+    fontSize: 28,
+    textAlign: "center",
   },
 });

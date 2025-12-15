@@ -1,14 +1,14 @@
 /**
  * Session Tracker Service - Offline-first with WatermelonDB
- * 
+ *
  * Manages focus session lifecycle with database persistence
  */
 
-import { SessionConfig, SessionStatus } from '@/types';
-import { useStore } from '@/store';
-import { database, collections, getTodayStats } from '@/database';
-import Session from '@/database/models/Session';
-import { Q } from '@nozbe/watermelondb';
+import { SessionConfig, SessionStatus } from "@/types";
+import { useStore } from "@/store";
+import { database, collections, getTodayStats } from "@/database";
+import Session from "@/database/models/Session";
+import { Q } from "@nozbe/watermelondb";
 
 class SessionTrackerService {
   private timer: NodeJS.Timeout | null = null;
@@ -20,7 +20,7 @@ class SessionTrackerService {
    */
   async startSession(config: SessionConfig): Promise<Session> {
     if (!config.goalMinutes || config.goalMinutes < 1) {
-      throw new Error('Invalid goal minutes');
+      throw new Error("Invalid goal minutes");
     }
 
     // Create session in database
@@ -28,7 +28,7 @@ class SessionTrackerService {
       const newSession = await collections.sessions.create((s) => {
         s.goalMinutes = config.goalMinutes;
         s.elapsedSeconds = 0;
-        s.status = 'active';
+        s.status = "active";
         s.startedAt = Date.now();
         s.interruptedCount = 0;
         s.blockedAppsRaw = JSON.stringify(config.blockApps || []);
@@ -37,7 +37,7 @@ class SessionTrackerService {
       // Create start event
       await collections.sessionEvents.create((event) => {
         event.sessionId = newSession.id;
-        event.eventType = 'start';
+        event.eventType = "start";
         event.timestamp = Date.now();
       });
 
@@ -46,11 +46,11 @@ class SessionTrackerService {
 
     this.currentSessionId = session.id;
     this.sessionStartTime = session.startedAt;
-    
+
     // Update store
     useStore.getState().setCurrentSession({
       id: session.id,
-      status: 'running',
+      status: "running",
       startTime: new Date(session.startedAt),
       goalMinutes: session.goalMinutes,
       actualMinutes: 0,
@@ -63,7 +63,7 @@ class SessionTrackerService {
 
     this.startTimer(session);
 
-    console.log('[SessionTracker] Session started:', session.id);
+    console.log("[SessionTracker] Session started:", session.id);
     return session;
   }
 
@@ -72,27 +72,27 @@ class SessionTrackerService {
    */
   async pauseSession(): Promise<void> {
     if (!this.currentSessionId) {
-      throw new Error('No active session to pause');
+      throw new Error("No active session to pause");
     }
 
     const session = await collections.sessions.find(this.currentSessionId);
 
     await database.write(async () => {
       await session.update((s) => {
-        s.status = 'paused';
+        s.status = "paused";
         s.pausedAt = Date.now();
       });
 
       // Create pause event
       await collections.sessionEvents.create((event) => {
         event.sessionId = session.id;
-        event.eventType = 'pause';
+        event.eventType = "pause";
         event.timestamp = Date.now();
       });
     });
 
     this.stopTimer();
-    useStore.getState().updateSessionStatus('paused');
+    useStore.getState().updateSessionStatus("paused");
   }
 
   /**
@@ -100,26 +100,26 @@ class SessionTrackerService {
    */
   async resumeSession(): Promise<void> {
     if (!this.currentSessionId) {
-      throw new Error('No session to resume');
+      throw new Error("No session to resume");
     }
 
     const session = await collections.sessions.find(this.currentSessionId);
 
     await database.write(async () => {
       await session.update((s) => {
-        s.status = 'active';
+        s.status = "active";
         s.resumedAt = Date.now();
       });
 
       // Create resume event
       await collections.sessionEvents.create((event) => {
         event.sessionId = session.id;
-        event.eventType = 'resume';
+        event.eventType = "resume";
         event.timestamp = Date.now();
       });
     });
 
-    useStore.getState().updateSessionStatus('running');
+    useStore.getState().updateSessionStatus("running");
     this.startTimer(session);
   }
 
@@ -128,7 +128,7 @@ class SessionTrackerService {
    */
   async endSession(completed: boolean = true): Promise<Session> {
     if (!this.currentSessionId) {
-      throw new Error('No active session to end');
+      throw new Error("No active session to end");
     }
 
     const session = await collections.sessions.find(this.currentSessionId);
@@ -136,14 +136,14 @@ class SessionTrackerService {
 
     await database.write(async () => {
       await session.update((s) => {
-        s.status = completed ? 'completed' : 'abandoned';
+        s.status = completed ? "completed" : "abandoned";
         s.completedAt = Date.now();
       });
 
       // Create complete/abandon event
       await collections.sessionEvents.create((event) => {
         event.sessionId = session.id;
-        event.eventType = completed ? 'complete' : 'abandon';
+        event.eventType = completed ? "complete" : "abandon";
         event.timestamp = Date.now();
       });
     });
@@ -156,7 +156,12 @@ class SessionTrackerService {
     this.sessionStartTime = null;
     useStore.getState().setCurrentSession(null);
 
-    console.log('[SessionTracker] Session ended:', session.id, 'completed:', completed);
+    console.log(
+      "[SessionTracker] Session ended:",
+      session.id,
+      "completed:",
+      completed
+    );
     return session;
   }
 
@@ -175,7 +180,7 @@ class SessionTrackerService {
 
       await collections.sessionEvents.create((event) => {
         event.sessionId = session.id;
-        event.eventType = 'interrupt';
+        event.eventType = "interrupt";
         event.timestamp = Date.now();
         event.metadataRaw = metadata ? JSON.stringify(metadata) : undefined;
       });
@@ -197,8 +202,8 @@ class SessionTrackerService {
   async getActiveSession(): Promise<Session | null> {
     const activeSessions = await collections.sessions
       .query(
-        Q.where('status', 'active'),
-        Q.sortBy('created_at', Q.desc),
+        Q.where("status", "active"),
+        Q.sortBy("created_at", Q.desc),
         Q.take(1)
       )
       .fetch();
@@ -211,7 +216,7 @@ class SessionTrackerService {
    */
   async getRecentSessions(limit: number = 10): Promise<Session[]> {
     return await collections.sessions
-      .query(Q.sortBy('created_at', Q.desc), Q.take(limit))
+      .query(Q.sortBy("created_at", Q.desc), Q.take(limit))
       .fetch();
   }
 
@@ -260,7 +265,7 @@ class SessionTrackerService {
     await database.write(async () => {
       await todayStats.update((stats) => {
         stats.totalFocusSeconds += session.elapsedSeconds;
-        
+
         if (completed) {
           stats.sessionsCompleted += 1;
         } else {

@@ -1,23 +1,23 @@
 /**
  * Session Store Slice
- * 
+ *
  * Manages session state globally
  */
 
-import { StateCreator } from 'zustand';
-import { Session, SessionStatus } from '../types/session';
+import { StateCreator } from "zustand";
+import { Session, SessionStatus } from "../types/session";
 
 export interface SessionSlice {
   // State
   currentSession: Session | null;
   sessions: Session[];
-  
+
   // Stats
   todayMinutes: number;
   weekMinutes: number;
   currentStreak: number;
   longestStreak: number;
-  
+
   // Actions
   setCurrentSession: (session: Session | null) => void;
   updateSessionStatus: (status: SessionStatus) => void;
@@ -36,25 +36,24 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set) => ({
   weekMinutes: 0,
   currentStreak: 0,
   longestStreak: 0,
-  
+
   // Actions
-  setCurrentSession: (session) =>
-    set({ currentSession: session }),
-  
+  setCurrentSession: (session) => set({ currentSession: session }),
+
   updateSessionStatus: (status) =>
     set((state) => ({
       currentSession: state.currentSession
         ? { ...state.currentSession, status }
         : null,
     })),
-  
+
   updateSessionMinutes: (minutes) =>
     set((state) => ({
       currentSession: state.currentSession
         ? { ...state.currentSession, actualMinutes: minutes }
         : null,
     })),
-  
+
   incrementUnlockCount: () =>
     set((state) => ({
       currentSession: state.currentSession
@@ -64,7 +63,7 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set) => ({
           }
         : null,
     })),
-  
+
   incrementAppSwitchCount: () =>
     set((state) => ({
       currentSession: state.currentSession
@@ -74,12 +73,12 @@ export const createSessionSlice: StateCreator<SessionSlice> = (set) => ({
           }
         : null,
     })),
-  
+
   addSession: (session) =>
     set((state) => ({
       sessions: [session, ...state.sessions],
     })),
-  
+
   updateStats: (stats) =>
     set((state) => ({
       ...state,

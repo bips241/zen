@@ -1,10 +1,17 @@
 /**
  * Session Types
- * 
+ *
  * Type definitions for productivity sessions
  */
 
-export type SessionStatus = 'idle' | 'active' | 'running' | 'paused' | 'break' | 'completed' | 'abandoned';
+export type SessionStatus =
+  | "idle"
+  | "active"
+  | "running"
+  | "paused"
+  | "break"
+  | "completed"
+  | "abandoned";
 
 export interface Session {
   id: string;
@@ -28,7 +35,7 @@ export interface SessionConfig {
   blockApps?: string[];
   allowBreaks?: boolean;
   frictionSeconds?: number;
-  theme?: 'default' | 'nature' | 'space';
+  theme?: "default" | "nature" | "space";
 }
 
 export interface SessionStats {
@@ -43,7 +50,7 @@ export interface SessionStats {
 }
 
 export interface SessionEvent {
-  type: 'started' | 'paused' | 'resumed' | 'completed' | 'tick';
+  type: "started" | "paused" | "resumed" | "completed" | "tick";
   session: Session;
   timestamp: Date;
   data?: any;

@@ -1,17 +1,23 @@
 /**
  * Button Component (Atom)
- * 
+ *
  * Primary interactive element with variants and states
  */
 
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { colors, typography, spacing } from '../../theme';
+import React from "react";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
+import { colors, typography, spacing } from "../../theme";
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: "primary" | "secondary" | "ghost";
   disabled?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
@@ -21,7 +27,7 @@ interface ButtonProps {
 export default function Button({
   label,
   onPress,
-  variant = 'primary',
+  variant = "primary",
   disabled = false,
   fullWidth = false,
   style,
@@ -44,7 +50,12 @@ export default function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled }}
     >
-      <Text style={[styles.label, styles[`${variant}Label` as keyof typeof styles] as TextStyle]}>
+      <Text
+        style={[
+          styles.label,
+          styles[`${variant}Label` as keyof typeof styles] as TextStyle,
+        ]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
@@ -56,8 +67,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: 48,
   },
   primary: {
@@ -69,17 +80,17 @@ const styles = StyleSheet.create({
     borderColor: colors.gray[700],
   },
   ghost: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   fullWidth: {
-    width: '100%',
+    width: "100%",
   },
   disabled: {
     opacity: 0.5,
   },
   label: {
     ...typography.body,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   primaryLabel: {
     color: colors.black,

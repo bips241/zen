@@ -8,6 +8,7 @@
     "skipLibCheck": true,
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
+    "ignoreDeprecations": "6.0",
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"],
@@ -23,10 +24,6 @@
       "@native-android/*": ["native-android/*"]
     }
   },
-  "exclude": [
-    "node_modules",
-    "babel.config.js",
-    "e2e"
-  ],
+  "exclude": ["node_modules", "babel.config.js", "e2e"],
   "extends": "expo/tsconfig.base"
 }

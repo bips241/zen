@@ -1,6 +1,6 @@
 /**
  * Navigation Types
- * 
+ *
  * Type-safe navigation parameters
  */
 

@@ -1,10 +1,10 @@
 /**
  * Settings Screen
- * 
+ *
  * App configuration and permissions management
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -12,19 +12,21 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
-} from 'react-native';
-import { Text, Container, Spacer, Button } from '../../components/atoms';
-import { Card } from '../../components/molecules';
-import { colors, spacing } from '../../theme';
-import { launcher, blocker, notifications } from '../../services/nativeBridge';
-import { useStore } from '../../store';
+} from "react-native";
+import { Text, Container, Spacer, Button } from "../../components/atoms";
+import { Card } from "../../components/molecules";
+import { colors, spacing } from "../../theme";
+import { launcher, blocker, notifications } from "../../services/nativeBridge";
+import { useStore } from "../../store";
 
 export default function SettingsScreen() {
   const [isDefaultLauncher, setIsDefaultLauncher] = useState(false);
   const [hasUsagePermission, setHasUsagePermission] = useState(false);
-  const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
+  const [hasNotificationPermission, setHasNotificationPermission] =
+    useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  
+  const [systemUIHidden, setSystemUIHidden] = useState(true);
+
   const preferences = useStore((state) => state.preferences);
   const updatePreferences = useStore((state) => state.updatePreferences);
 
@@ -46,7 +48,7 @@ export default function SettingsScreen() {
       setHasNotificationPermission(hasNotif);
       setNotificationsEnabled(notifEnabled);
     } catch (error) {
-      console.error('[Settings] Error checking permissions:', error);
+      console.error("[Settings] Error checking permissions:", error);
     }
   };
 
@@ -55,15 +57,18 @@ export default function SettingsScreen() {
       const result = await launcher.setAsDefault();
       if (result.success) {
         Alert.alert(
-          'Set as Default Launcher',
+          "Set as Default Launcher",
           'Please select Zen Mobile from the list and tap "Always"',
-          [{ text: 'OK', onPress: checkPermissions }]
+          [{ text: "OK", onPress: checkPermissions }]
         );
       } else {
-        Alert.alert('Error', result.error || 'Failed to set as default launcher');
+        Alert.alert(
+          "Error",
+          result.error || "Failed to set as default launcher"
+        );
       }
     } catch (error) {
-      Alert.alert('Error', String(error));
+      Alert.alert("Error", String(error));
     }
   };
 
@@ -71,12 +76,12 @@ export default function SettingsScreen() {
     try {
       await blocker.requestUsageStatsPermission();
       Alert.alert(
-        'Usage Access Required',
+        "Usage Access Required",
         'Please enable "Permit usage access" for Zen Mobile',
-        [{ text: 'OK', onPress: checkPermissions }]
+        [{ text: "OK", onPress: checkPermissions }]
       );
     } catch (error) {
-      Alert.alert('Error', String(error));
+      Alert.alert("Error", String(error));
     }
   };
 
@@ -84,12 +89,12 @@ export default function SettingsScreen() {
     try {
       await notifications.requestPermission();
       Alert.alert(
-        'Notification Access Required',
-        'Please enable notification access for Zen Mobile',
-        [{ text: 'OK', onPress: checkPermissions }]
+        "Notification Access Required",
+        "Please enable notification access for Zen Mobile",
+        [{ text: "OK", onPress: checkPermissions }]
       );
     } catch (error) {
-      Alert.alert('Error', String(error));
+      Alert.alert("Error", String(error));
     }
   };
 
@@ -102,12 +107,25 @@ export default function SettingsScreen() {
       }
       setNotificationsEnabled(enabled);
     } catch (error) {
-      Alert.alert('Error', String(error));
+      Alert.alert("Error", String(error));
     }
   };
 
   const handleDailyGoalChange = (minutes: number) => {
     updatePreferences({ dailyGoalMinutes: minutes });
+  };
+
+  const handleToggleSystemUI = async (enabled: boolean) => {
+    try {
+      setSystemUIHidden(enabled);
+      if (enabled) {
+        await launcher.hideSystemUI();
+      } else {
+        await launcher.showSystemUI();
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to toggle system UI");
+    }
   };
 
   return (
@@ -178,6 +196,26 @@ export default function SettingsScreen() {
 
         <Spacer size="sm" />
 
+        {/* Fullscreen Mode */}
+        <Card>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text variant="bodyBold">Fullscreen Mode</Text>
+              <Text variant="small" color={colors.gray[500]}>
+                Hide status bar and navigation
+              </Text>
+            </View>
+            <Switch
+              value={systemUIHidden}
+              onValueChange={handleToggleSystemUI}
+              trackColor={{ false: colors.gray[700], true: colors.accent }}
+              thumbColor={systemUIHidden ? colors.white : colors.gray[500]}
+            />
+          </View>
+        </Card>
+
+        <Spacer size="sm" />
+
         {/* Notification Permission */}
         <Card>
           <View style={styles.settingRow}>
@@ -222,7 +260,9 @@ export default function SettingsScreen() {
               value={notificationsEnabled}
               onValueChange={handleToggleNotifications}
               trackColor={{ false: colors.gray[700], true: colors.accentDark }}
-              thumbColor={notificationsEnabled ? colors.accent : colors.gray[500]}
+              thumbColor={
+                notificationsEnabled ? colors.accent : colors.gray[500]
+              }
               disabled={!hasNotificationPermission}
             />
           </View>
@@ -240,14 +280,15 @@ export default function SettingsScreen() {
             Current: {preferences.dailyGoalMinutes} minutes
           </Text>
           <Spacer size="md" />
-          
+
           <View style={styles.goalButtons}>
             {[30, 60, 90, 120, 180, 240].map((minutes) => (
               <TouchableOpacity
                 key={minutes}
                 style={[
                   styles.goalButton,
-                  preferences.dailyGoalMinutes === minutes && styles.goalButtonActive,
+                  preferences.dailyGoalMinutes === minutes &&
+                    styles.goalButtonActive,
                 ]}
                 onPress={() => handleDailyGoalChange(minutes)}
               >
@@ -291,9 +332,9 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   settingInfo: {
     flex: 1,
@@ -306,8 +347,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   goalButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   goalButton: {

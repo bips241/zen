@@ -1,12 +1,12 @@
 /**
  * ProgressBar Component (Molecule)
- * 
+ *
  * Linear progress indicator
  */
 
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { colors } from '../../theme';
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import { colors } from "../../theme";
 
 interface ProgressBarProps {
   progress: number; // 0-1
@@ -22,7 +22,7 @@ export default function ProgressBar({
   backgroundColor = colors.gray[800],
 }: ProgressBarProps) {
   const clampedProgress = Math.max(0, Math.min(1, progress));
-  
+
   return (
     <View style={[styles.container, { height, backgroundColor }]}>
       <View
@@ -40,12 +40,12 @@ export default function ProgressBar({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
+    width: "100%",
     borderRadius: 999,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   fill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 999,
   },
 });

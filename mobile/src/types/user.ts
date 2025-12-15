@@ -1,6 +1,6 @@
 /**
  * User Types
- * 
+ *
  * Type definitions for user data and preferences
  */
 
@@ -15,7 +15,7 @@ export interface User {
 
 export interface UserPreferences {
   dailyGoalMinutes: number;
-  theme: 'default' | 'nature' | 'space';
+  theme: "default" | "nature" | "space";
   enableHaptics: boolean;
   enableSounds: boolean;
   breakReminderEnabled: boolean;

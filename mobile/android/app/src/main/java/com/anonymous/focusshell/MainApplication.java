@@ -15,6 +15,8 @@ import com.facebook.soloader.SoLoader;
 import expo.modules.ApplicationLifecycleDispatcher;
 import expo.modules.ReactNativeHostWrapper;
 
+import com.anonymous.focusshell.modules.ZenReactPackage;
+
 import java.util.List;
 
 public class MainApplication extends Application implements ReactApplication {
@@ -31,7 +33,7 @@ public class MainApplication extends Application implements ReactApplication {
         @SuppressWarnings("UnnecessaryLocalVariable")
         List<ReactPackage> packages = new PackageList(this).getPackages();
         // Add custom Zen Mobile native modules
-        packages.add(new ZenModulesPackage());
+        packages.add(new ZenReactPackage());
         return packages;
       }
 

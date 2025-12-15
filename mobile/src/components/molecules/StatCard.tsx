@@ -1,13 +1,13 @@
 /**
  * StatCard Component (Molecule)
- * 
+ *
  * Display stat with label and value
  */
 
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text } from '../atoms';
-import { colors, spacing } from '../../theme';
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import { Text } from "../atoms";
+import { colors, spacing } from "../../theme";
 
 interface StatCardProps {
   label: string;
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: spacing.xs,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   value: {
     marginBottom: spacing.xs,

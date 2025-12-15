@@ -2,6 +2,13 @@ package com.anonymous.focusshell;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
+import android.view.Window;
+
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
@@ -11,6 +18,8 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate;
 import expo.modules.ReactActivityDelegateWrapper;
 
 public class MainActivity extends ReactActivity {
+  private WindowInsetsControllerCompat windowInsetsController;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Set the theme to AppTheme BEFORE onCreate to support 
@@ -18,6 +27,63 @@ public class MainActivity extends ReactActivity {
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
     super.onCreate(null);
+    
+    // Enable edge-to-edge display
+    Window window = getWindow();
+    WindowCompat.setDecorFitsSystemWindows(window, false);
+    
+    // Get the WindowInsetsController
+    windowInsetsController = WindowCompat.getInsetsController(window, window.getDecorView());
+    
+    // Configure behavior: transient bars that auto-hide after swipe
+    if (windowInsetsController != null) {
+      windowInsetsController.setSystemBarsBehavior(
+        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      );
+    }
+    
+    // Add listener to keep hiding system bars when they appear
+    ViewCompat.setOnApplyWindowInsetsListener(window.getDecorView(), (view, windowInsets) -> {
+      // Auto-hide system bars immediately when they become visible
+      if (windowInsetsController != null) {
+        if (windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
+            || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())) {
+          view.postDelayed(() -> hideSystemUI(), 100);
+        }
+      }
+      return ViewCompat.onApplyWindowInsets(view, windowInsets);
+    });
+    
+    // Initial hide
+    hideSystemUI();
+  }
+
+  @Override
+  public void onWindowFocusChanged(boolean hasFocus) {
+    super.onWindowFocusChanged(hasFocus);
+    if (hasFocus) {
+      hideSystemUI();
+    }
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    hideSystemUI();
+  }
+
+  private void hideSystemUI() {
+    if (windowInsetsController != null) {
+      // Hide both status bar and navigation bar
+      windowInsetsController.hide(WindowInsetsCompat.Type.systemBars());
+    }
+  }
+
+  public void showSystemUI() {
+    if (windowInsetsController != null) {
+      // Show both status bar and navigation bar
+      windowInsetsController.show(WindowInsetsCompat.Type.systemBars());
+    }
   }
 
   /**

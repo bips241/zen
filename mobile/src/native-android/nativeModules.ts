@@ -3,7 +3,7 @@
  * TypeScript interfaces for Android native modules
  */
 
-import { NativeModules } from 'react-native';
+import { NativeModules } from "react-native";
 
 // ============================================================================
 // ZenLauncher Module
@@ -40,6 +40,8 @@ export interface AppRunningInfo {
 interface ZenLauncherModule {
   isDefaultLauncher(): Promise<LauncherInfo>;
   requestSetAsDefaultLauncher(): Promise<LauncherResult>;
+  hideSystemUI(): Promise<boolean>;
+  showSystemUI(): Promise<boolean>;
   getInstalledApps(): Promise<InstalledApp[]>;
   launchApp(packageName: string): Promise<AppLaunchResult>;
   isAppRunning(packageName: string): Promise<AppRunningInfo>;
@@ -100,7 +102,10 @@ export interface ScreenTimeStats {
 
 interface UsageStatsModule {
   getTodayUsage(): Promise<AppUsageStats[]>;
-  getUsageInRange(startTimeMs: number, endTimeMs: number): Promise<AppUsageStats[]>;
+  getUsageInRange(
+    startTimeMs: number,
+    endTimeMs: number
+  ): Promise<AppUsageStats[]>;
   getMostUsedApps(limit: number): Promise<AppUsageStats[]>;
   getTotalScreenTime(): Promise<ScreenTimeStats>;
 }
@@ -124,8 +129,12 @@ export interface PermissionCheckResult {
 interface ZenNotificationModule {
   enableNotificationBlocking(): Promise<NotificationResult>;
   disableNotificationBlocking(): Promise<NotificationResult>;
-  blockNotificationsFromApps(packageNames: string[]): Promise<NotificationResult>;
-  unblockNotificationsFromApps(packageNames: string[]): Promise<NotificationResult>;
+  blockNotificationsFromApps(
+    packageNames: string[]
+  ): Promise<NotificationResult>;
+  unblockNotificationsFromApps(
+    packageNames: string[]
+  ): Promise<NotificationResult>;
   clearBlockedNotifications(): Promise<NotificationResult>;
   hasNotificationListenerPermission(): Promise<PermissionCheckResult>;
   requestNotificationListenerPermission(): Promise<NotificationResult>;
@@ -150,9 +159,9 @@ export const isNativeModuleAvailable = (moduleName: string): boolean => {
 
 export const areAllModulesAvailable = (): boolean => {
   return (
-    isNativeModuleAvailable('ZenLauncher') &&
-    isNativeModuleAvailable('AppBlocker') &&
-    isNativeModuleAvailable('UsageStats') &&
-    isNativeModuleAvailable('ZenNotification')
+    isNativeModuleAvailable("ZenLauncher") &&
+    isNativeModuleAvailable("AppBlocker") &&
+    isNativeModuleAvailable("UsageStats") &&
+    isNativeModuleAvailable("ZenNotification")
   );
 };

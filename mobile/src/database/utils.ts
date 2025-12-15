@@ -2,20 +2,17 @@
  * Database Utilities - Helper functions for common database operations
  */
 
-import { Q } from '@nozbe/watermelondb';
-import { collections, getTodayDate } from './index';
-import Session from './models/Session';
-import DailyStats from './models/DailyStats';
+import { Q } from "@nozbe/watermelondb";
+import { collections, getTodayDate } from "./index";
+import Session from "./models/Session";
+import DailyStats from "./models/DailyStats";
 
 /**
  * Get all completed sessions
  */
 export const getCompletedSessions = async (): Promise<Session[]> => {
   return await collections.sessions
-    .query(
-      Q.where('status', 'completed'),
-      Q.sortBy('created_at', Q.desc)
-    )
+    .query(Q.where("status", "completed"), Q.sortBy("created_at", Q.desc))
     .fetch();
 };
 
@@ -28,9 +25,9 @@ export const getSessionsForDate = async (date: string): Promise<Session[]> => {
 
   return await collections.sessions
     .query(
-      Q.where('started_at', Q.gte(startOfDay)),
-      Q.where('started_at', Q.lte(endOfDay)),
-      Q.sortBy('started_at', Q.desc)
+      Q.where("started_at", Q.gte(startOfDay)),
+      Q.where("started_at", Q.lte(endOfDay)),
+      Q.sortBy("started_at", Q.desc)
     )
     .fetch();
 };
@@ -45,14 +42,11 @@ export const getStatsForLastDays = async (
   for (let i = 0; i < days; i++) {
     const date = new Date();
     date.setDate(date.getDate() - i);
-    dates.push(date.toISOString().split('T')[0]);
+    dates.push(date.toISOString().split("T")[0]);
   }
 
   return await collections.dailyStats
-    .query(
-      Q.where('date', Q.oneOf(dates)),
-      Q.sortBy('date', Q.desc)
-    )
+    .query(Q.where("date", Q.oneOf(dates)), Q.sortBy("date", Q.desc))
     .fetch();
 };
 
@@ -72,14 +66,11 @@ export const getMonthlyFocusTime = async (): Promise<number> => {
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-  const startDate = firstDayOfMonth.toISOString().split('T')[0];
-  const endDate = lastDayOfMonth.toISOString().split('T')[0];
+  const startDate = firstDayOfMonth.toISOString().split("T")[0];
+  const endDate = lastDayOfMonth.toISOString().split("T")[0];
 
   const stats = await collections.dailyStats
-    .query(
-      Q.where('date', Q.gte(startDate)),
-      Q.where('date', Q.lte(endDate))
-    )
+    .query(Q.where("date", Q.gte(startDate)), Q.where("date", Q.lte(endDate)))
     .fetch();
 
   return stats.reduce((total, stat) => total + stat.totalFocusSeconds, 0);
@@ -108,7 +99,7 @@ export const getCurrentStreak = async (): Promise<number> => {
  */
 export const getMostProductiveHour = async (): Promise<number> => {
   const recentSessions = await collections.sessions
-    .query(Q.where('status', 'completed'), Q.take(100))
+    .query(Q.where("status", "completed"), Q.take(100))
     .fetch();
 
   const hourCounts: Record<number, number> = {};
@@ -152,15 +143,13 @@ export const getAverageSessionDuration = async (): Promise<number> => {
  */
 export const getCompletionRate = async (): Promise<number> => {
   const allSessions = await collections.sessions
-    .query(
-      Q.or(Q.where('status', 'completed'), Q.where('status', 'abandoned'))
-    )
+    .query(Q.or(Q.where("status", "completed"), Q.where("status", "abandoned")))
     .fetch();
 
   if (allSessions.length === 0) return 0;
 
   const completedCount = allSessions.filter(
-    (s) => s.status === 'completed'
+    (s) => s.status === "completed"
   ).length;
 
   return Math.floor((completedCount / allSessions.length) * 100);
@@ -169,11 +158,13 @@ export const getCompletionRate = async (): Promise<number> => {
 /**
  * Delete old sessions (older than X days)
  */
-export const cleanupOldSessions = async (daysToKeep: number = 90): Promise<number> => {
+export const cleanupOldSessions = async (
+  daysToKeep: number = 90
+): Promise<number> => {
   const cutoffDate = Date.now() - daysToKeep * 24 * 60 * 60 * 1000;
 
   const oldSessions = await collections.sessions
-    .query(Q.where('started_at', Q.lt(cutoffDate)))
+    .query(Q.where("started_at", Q.lt(cutoffDate)))
     .fetch();
 
   for (const session of oldSessions) {

@@ -1,16 +1,16 @@
 /**
  * App Root Component
- * 
+ *
  * Main entry point with navigation and database initialization
  */
 
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { StatusBar, View, ActivityIndicator, StyleSheet } from 'react-native';
-import RootNavigator from './navigation/RootNavigator';
-import { colors } from './theme';
-import { database } from './database';
-import { Text } from './components';
+import React, { useEffect, useState } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { StatusBar, View, ActivityIndicator, StyleSheet } from "react-native";
+import RootNavigator from "./navigation/RootNavigator";
+import { colors } from "./theme";
+import { database } from "./database";
+import { Text } from "./components";
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -24,15 +24,15 @@ export default function App() {
     try {
       // Database is already initialized when imported
       // Add any additional setup here
-      console.log('[App] Database initialized');
-      
+      console.log("[App] Database initialized");
+
       // Small delay to ensure everything is ready
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       setIsReady(true);
     } catch (err) {
-      console.error('[App] Initialization error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initialize app');
+      console.error("[App] Initialization error:", err);
+      setError(err instanceof Error ? err.message : "Failed to initialize app");
     }
   };
 
@@ -65,20 +65,20 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: colors.black,
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: colors.black,
     padding: 20,
   },
   errorText: {
     color: colors.error,
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

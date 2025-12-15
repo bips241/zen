@@ -1,22 +1,22 @@
-import { Model } from '@nozbe/watermelondb';
-import { field, date, readonly } from '@nozbe/watermelondb/decorators';
+import { Model } from "@nozbe/watermelondb";
+import { field, date, readonly } from "@nozbe/watermelondb/decorators";
 
 /**
  * DailyStats Model - Aggregated daily statistics
  */
 export default class DailyStats extends Model {
-  static table = 'daily_stats';
+  static table = "daily_stats";
 
-  @field('date') date!: string; // YYYY-MM-DD
-  @field('total_focus_seconds') totalFocusSeconds!: number;
-  @field('sessions_completed') sessionsCompleted!: number;
-  @field('sessions_abandoned') sessionsAbandoned!: number;
-  @field('total_interruptions') totalInterruptions!: number;
-  @field('longest_streak_seconds') longestStreakSeconds!: number;
-  @field('apps_opened_count') appsOpenedCount!: number;
-  @field('most_used_apps') mostUsedAppsRaw!: string; // JSON array
-  @readonly @date('created_at') createdAt!: Date;
-  @readonly @date('updated_at') updatedAt!: Date;
+  @field("date") date!: string; // YYYY-MM-DD
+  @field("total_focus_seconds") totalFocusSeconds!: number;
+  @field("sessions_completed") sessionsCompleted!: number;
+  @field("sessions_abandoned") sessionsAbandoned!: number;
+  @field("total_interruptions") totalInterruptions!: number;
+  @field("longest_streak_seconds") longestStreakSeconds!: number;
+  @field("apps_opened_count") appsOpenedCount!: number;
+  @field("most_used_apps") mostUsedAppsRaw!: string; // JSON array
+  @readonly @date("created_at") createdAt!: Date;
+  @readonly @date("updated_at") updatedAt!: Date;
 
   get mostUsedApps(): string[] {
     try {

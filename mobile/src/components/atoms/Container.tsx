@@ -1,12 +1,12 @@
 /**
  * Container Component (Atom)
- * 
+ *
  * Base container with consistent padding and background
  */
 
-import React from 'react';
-import { View, StyleSheet, ViewProps } from 'react-native';
-import { colors, spacing, SpacingKey } from '../../theme';
+import React from "react";
+import { View, StyleSheet, ViewProps } from "react-native";
+import { colors, spacing, SpacingKey } from "../../theme";
 
 interface ContainerProps extends ViewProps {
   padding?: SpacingKey;
@@ -16,7 +16,7 @@ interface ContainerProps extends ViewProps {
 }
 
 export default function Container({
-  padding = 'md',
+  padding = "md",
   backgroundColor = colors.black,
   centered = false,
   style,
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   centered: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

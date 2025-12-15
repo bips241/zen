@@ -1,10 +1,10 @@
 /**
  * App Drawer Screen
- * 
+ *
  * Displays all installed apps with search and launch functionality
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -13,16 +13,16 @@ import {
   TextInput,
   Image,
   ActivityIndicator,
-} from 'react-native';
-import { Text, Container, Spacer } from '../../components/atoms';
-import { colors, spacing } from '../../theme';
-import { launcher } from '../../services/nativeBridge';
-import type { InstalledApp } from '../../native-android/nativeModules';
+} from "react-native";
+import { Text, Container, Spacer } from "../../components/atoms";
+import { colors, spacing } from "../../theme";
+import { launcher } from "../../services/nativeBridge";
+import type { InstalledApp } from "../../native-android/nativeModules";
 
 export default function AppDrawerScreen() {
   const [apps, setApps] = useState<InstalledApp[]>([]);
   const [filteredApps, setFilteredApps] = useState<InstalledApp[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,16 +36,16 @@ export default function AppDrawerScreen() {
   const loadApps = async () => {
     try {
       const installedApps = await launcher.getInstalledApps();
-      
+
       // Sort alphabetically
       const sortedApps = installedApps.sort((a, b) =>
         a.appName.localeCompare(b.appName)
       );
-      
+
       setApps(sortedApps);
       setFilteredApps(sortedApps);
     } catch (error) {
-      console.error('[AppDrawer] Error loading apps:', error);
+      console.error("[AppDrawer] Error loading apps:", error);
     } finally {
       setLoading(false);
     }
@@ -70,10 +70,10 @@ export default function AppDrawerScreen() {
     try {
       const success = await launcher.launchApp(app.packageName);
       if (!success) {
-        console.error('[AppDrawer] Failed to launch app:', app.packageName);
+        console.error("[AppDrawer] Failed to launch app:", app.packageName);
       }
     } catch (error) {
-      console.error('[AppDrawer] Error launching app:', error);
+      console.error("[AppDrawer] Error launching app:", error);
     }
   };
 
@@ -138,7 +138,7 @@ export default function AppDrawerScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text variant="body" color={colors.gray[500]}>
-              {searchQuery ? 'No apps found' : 'No apps installed'}
+              {searchQuery ? "No apps found" : "No apps installed"}
             </Text>
           </View>
         }
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.black,
   },
   headerTitle: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   searchInput: {
     backgroundColor: colors.gray[900],
@@ -172,10 +172,10 @@ const styles = StyleSheet.create({
   },
   appItem: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     padding: spacing.sm,
     margin: spacing.xs,
-    maxWidth: '25%',
+    maxWidth: "25%",
   },
   appIcon: {
     width: 60,
@@ -185,22 +185,22 @@ const styles = StyleSheet.create({
   },
   appIconPlaceholder: {
     backgroundColor: colors.gray[800],
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   appName: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 12,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingTop: spacing.xxl,
   },
 });

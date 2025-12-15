@@ -1,20 +1,20 @@
 /**
  * Dashboard Screen
- * 
+ *
  * Analytics and statistics view with database integration
  */
 
-import React from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { Text, Container, Spacer } from '../../components/atoms';
-import { StatCard, Card } from '../../components/molecules';
-import { colors, spacing } from '../../theme';
+import React from "react";
+import { View, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { Text, Container, Spacer } from "../../components/atoms";
+import { StatCard, Card } from "../../components/molecules";
+import { colors, spacing } from "../../theme";
 import {
   useTodayStats,
   useWeeklyStats,
   useRecentSessions,
   useCompletionStats,
-} from '../../hooks/useDatabase';
+} from "../../hooks/useDatabase";
 
 export default function DashboardScreen() {
   const { stats: todayStats, loading: todayLoading } = useTodayStats();
@@ -31,7 +31,8 @@ export default function DashboardScreen() {
     return `${mins}m`;
   };
 
-  const isLoading = todayLoading || weekLoading || sessionsLoading || streakLoading;
+  const isLoading =
+    todayLoading || weekLoading || sessionsLoading || streakLoading;
 
   if (isLoading) {
     return (
@@ -44,8 +45,8 @@ export default function DashboardScreen() {
   }
 
   const todayMinutes = todayStats?.totalFocusMinutes || 0;
-  const longestStreak = todayStats?.longestStreakSeconds 
-    ? Math.floor(todayStats.longestStreakSeconds / 86400) 
+  const longestStreak = todayStats?.longestStreakSeconds
+    ? Math.floor(todayStats.longestStreakSeconds / 86400)
     : 0;
 
   return (
@@ -99,7 +100,11 @@ export default function DashboardScreen() {
 
         {sessions.length === 0 ? (
           <Card>
-            <Text variant="body" color={colors.gray[500]} style={styles.emptyText}>
+            <Text
+              variant="body"
+              color={colors.gray[500]}
+              style={styles.emptyText}
+            >
               No sessions yet. Start your first focus session!
             </Text>
           </Card>
@@ -110,14 +115,20 @@ export default function DashboardScreen() {
                 <View style={styles.sessionRow}>
                   <View style={styles.sessionInfo}>
                     <Text variant="bodyBold">
-                      {Math.floor(session.elapsedSeconds / 60)} / {session.goalMinutes} min
+                      {Math.floor(session.elapsedSeconds / 60)} /{" "}
+                      {session.goalMinutes} min
                     </Text>
                     <Text variant="small" color={colors.gray[500]}>
                       {new Date(session.startedAt).toLocaleDateString()}
                     </Text>
                   </View>
                   <View style={styles.sessionScore}>
-                    <Text variant="title" color={session.isCompleted ? colors.accent : colors.gray[500]}>
+                    <Text
+                      variant="title"
+                      color={
+                        session.isCompleted ? colors.accent : colors.gray[500]
+                      }
+                    >
                       {Math.floor(session.progressPercent)}%
                     </Text>
                     <Text variant="tiny" color={colors.gray[500]}>
@@ -140,25 +151,25 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   statsGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.md,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   sessionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   sessionInfo: {
     flex: 1,
   },
   sessionScore: {
-    alignItems: 'center',
+    alignItems: "center",
   },
 });

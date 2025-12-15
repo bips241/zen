@@ -1,28 +1,26 @@
 /**
  * Card Component (Molecule)
- * 
+ *
  * Container card with subtle elevation
  */
 
-import React from 'react';
-import { View, StyleSheet, ViewProps } from 'react-native';
-import { colors, spacing } from '../../theme';
+import React from "react";
+import { View, StyleSheet, ViewProps } from "react-native";
+import { colors, spacing } from "../../theme";
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
   elevated?: boolean;
 }
 
-export default function Card({ children, elevated = false, style, ...props }: CardProps) {
+export default function Card({
+  children,
+  elevated = false,
+  style,
+  ...props
+}: CardProps) {
   return (
-    <View
-      style={[
-        styles.base,
-        elevated && styles.elevated,
-        style,
-      ]}
-      {...props}
-    >
+    <View style={[styles.base, elevated && styles.elevated, style]} {...props}>
       {children}
     </View>
   );
@@ -37,7 +35,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gray[800],
   },
   elevated: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
