@@ -12,7 +12,15 @@ class ZenReactPackage : ReactPackage {
             ZenLauncherModule(reactContext),
             AppBlockerModule(reactContext),
             UsageStatsModule(reactContext),
-            ZenNotificationModule(reactContext)
+            ZenNotificationModule(reactContext),
+            DNDModule(reactContext),
+            FocusEnforcementModule(reactContext),
+            FocusNotificationModule(reactContext),
+            PowerModule(reactContext),
+            WallpaperModule(reactContext),
+            BackupModule(reactContext),
+            GestureModule(reactContext),
+            AccessibilityModule(reactContext)
         )
     }
 

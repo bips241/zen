@@ -2,7 +2,7 @@
  * Typography System
  *
  * Scales from huge (timer) to tiny (captions)
- * Uses system fonts for performance
+ * Uses Zen Dots font for minimalist aesthetic
  */
 
 export const typography = {
@@ -12,6 +12,7 @@ export const typography = {
     fontWeight: "300" as const,
     lineHeight: 72,
     letterSpacing: -1,
+    fontFamily: "ZenDots-Regular",
   },
 
   large: {
@@ -19,6 +20,7 @@ export const typography = {
     fontWeight: "400" as const,
     lineHeight: 40,
     letterSpacing: -0.5,
+    fontFamily: "ZenDots-Regular",
   },
 
   title: {
@@ -26,6 +28,7 @@ export const typography = {
     fontWeight: "500" as const,
     lineHeight: 32,
     letterSpacing: 0,
+    fontFamily: "ZenDots-Regular",
   },
 
   heading: {
@@ -33,6 +36,7 @@ export const typography = {
     fontWeight: "500" as const,
     lineHeight: 28,
     letterSpacing: 0,
+    fontFamily: "ZenDots-Regular",
   },
 
   subheading: {
@@ -40,6 +44,7 @@ export const typography = {
     fontWeight: "500" as const,
     lineHeight: 24,
     letterSpacing: 0,
+    fontFamily: "ZenDots-Regular",
   },
 
   // Body text
@@ -48,6 +53,7 @@ export const typography = {
     fontWeight: "400" as const,
     lineHeight: 24,
     letterSpacing: 0,
+    fontFamily: "ZenDots-Regular",
   },
 
   bodyBold: {
@@ -55,6 +61,7 @@ export const typography = {
     fontWeight: "600" as const,
     lineHeight: 24,
     letterSpacing: 0,
+    fontFamily: "ZenDots-Regular",
   },
 
   // Small text
@@ -63,6 +70,7 @@ export const typography = {
     fontWeight: "400" as const,
     lineHeight: 20,
     letterSpacing: 0,
+    fontFamily: "ZenDots-Regular",
   },
 
   smallBold: {
@@ -70,6 +78,7 @@ export const typography = {
     fontWeight: "600" as const,
     lineHeight: 20,
     letterSpacing: 0,
+    fontFamily: "ZenDots-Regular",
   },
 
   // Captions
@@ -78,6 +87,7 @@ export const typography = {
     fontWeight: "400" as const,
     lineHeight: 16,
     letterSpacing: 0.5,
+    fontFamily: "ZenDots-Regular",
   },
 
   captionBold: {
@@ -85,6 +95,7 @@ export const typography = {
     fontWeight: "600" as const,
     lineHeight: 16,
     letterSpacing: 0.5,
+    fontFamily: "ZenDots-Regular",
   },
 
   // Tiny labels
@@ -93,6 +104,7 @@ export const typography = {
     fontWeight: "400" as const,
     lineHeight: 14,
     letterSpacing: 0.5,
+    fontFamily: "ZenDots-Regular",
   },
 } as const;
 

@@ -1,0 +1,18 @@
+{
+  "editor.minimap.enabled": false,
+  "editor.codeLens": false,
+  "editor.inlayHints.enabled": "off",
+  "editor.quickSuggestions": {
+    "other": false,
+    "comments": false,
+    "strings": false
+  },
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/**": true,
+    "**/.expo/**": true,
+    "**/android/**": true,
+    "**/ios/**": true
+  }
+}

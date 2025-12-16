@@ -8,9 +8,9 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
@@ -23,7 +23,7 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
 
     /**
      * Hide system UI (status bar and navigation buttons)
-     * Uses AndroidX WindowInsetsControllerCompat for proper immersive mode
+     * Maximum enforcement for launcher - prevents swipe-to-show
      */
     @ReactMethod
     fun hideSystemUI(promise: Promise) {
@@ -31,16 +31,32 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
             currentActivity?.runOnUiThread {
                 val window = currentActivity?.window
                 if (window != null) {
-                    // Get the WindowInsetsController using AndroidX compat library
-                    val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-                    
-                    if (windowInsetsController != null) {
-                        // Configure behavior: show transient bars on swipe, then auto-hide
-                        windowInsetsController.systemBarsBehavior = 
-                            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        // API 30+ (Android 11+): Use WindowInsetsController
+                        window.setDecorFitsSystemWindows(false)
                         
-                        // Hide both status bar and navigation bar
-                        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+                        val controller = window.insetsController
+                        if (controller != null) {
+                            // Hide status bar and navigation bar
+                            controller.hide(
+                                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+                            )
+                            
+                            // CRITICAL: Disable swipe-to-show
+                            // BEHAVIOR_SHOW_BARS_BY_TOUCH = bars only show on explicit button press
+                            controller.systemBarsBehavior = 
+                                WindowInsetsController.BEHAVIOR_SHOW_BARS_BY_TOUCH
+                        }
+                    } else {
+                        // API < 30: Use legacy flags
+                        val decorView = window.decorView
+                        val flags = View.SYSTEM_UI_FLAG_FULLSCREEN or
+                                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        decorView.systemUiVisibility = flags
                     }
                 }
                 promise.resolve(true)
@@ -52,6 +68,7 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
 
     /**
      * Show system UI (status bar and navigation buttons)
+     * Called explicitly by user action (button press)
      */
     @ReactMethod
     fun showSystemUI(promise: Promise) {
@@ -59,12 +76,18 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
             currentActivity?.runOnUiThread {
                 val window = currentActivity?.window
                 if (window != null) {
-                    // Get the WindowInsetsController using AndroidX compat library
-                    val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-                    
-                    if (windowInsetsController != null) {
-                        // Show both status bar and navigation bar
-                        windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        // API 30+: Use WindowInsetsController
+                        val controller = window.insetsController
+                        if (controller != null) {
+                            controller.show(
+                                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+                            )
+                        }
+                    } else {
+                        // API < 30: Clear flags
+                        val decorView = window.decorView
+                        decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
                     }
                 }
                 promise.resolve(true)
@@ -244,6 +267,196 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
             promise.resolve("icon_placeholder")
         } catch (e: Exception) {
             promise.reject("ERROR", "Failed to get app icon: ${e.message}")
+        }
+    }
+
+    /**
+     * Get detailed app information including size, install date, etc.
+     */
+    @ReactMethod
+    fun getAppDetails(packageName: String, promise: Promise) {
+        try {
+            val pm = reactApplicationContext.packageManager
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            val packageInfo = pm.getPackageInfo(packageName, 0)
+            
+            val result = WritableNativeMap()
+            result.putString("packageName", packageName)
+            result.putString("appName", pm.getApplicationLabel(appInfo).toString())
+            result.putString("versionName", packageInfo.versionName ?: "Unknown")
+            result.putDouble("versionCode", packageInfo.versionCode.toDouble())
+            result.putDouble("firstInstallTime", packageInfo.firstInstallTime.toDouble())
+            result.putDouble("lastUpdateTime", packageInfo.lastUpdateTime.toDouble())
+            
+            // App size (requires storage stats permission for accurate size on newer APIs)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val storageStatsManager = reactApplicationContext
+                        .getSystemService(Context.STORAGE_STATS_SERVICE) as android.app.usage.StorageStatsManager
+                    val storageStats = storageStatsManager.queryStatsForPackage(
+                        android.os.storage.StorageManager.UUID_DEFAULT,
+                        packageName,
+                        android.os.Process.myUserHandle()
+                    )
+                    result.putDouble("appBytes", storageStats.appBytes.toDouble())
+                    result.putDouble("dataBytes", storageStats.dataBytes.toDouble())
+                    result.putDouble("cacheBytes", storageStats.cacheBytes.toDouble())
+                } catch (e: Exception) {
+                    // Permission not granted or other error
+                    result.putDouble("appBytes", 0.0)
+                    result.putDouble("dataBytes", 0.0)
+                    result.putDouble("cacheBytes", 0.0)
+                }
+            }
+            
+            // App category
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val category = when (appInfo.category) {
+                    ApplicationInfo.CATEGORY_GAME -> "Game"
+                    ApplicationInfo.CATEGORY_SOCIAL -> "Social"
+                    ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
+                    ApplicationInfo.CATEGORY_NEWS -> "News"
+                    ApplicationInfo.CATEGORY_VIDEO -> "Video"
+                    ApplicationInfo.CATEGORY_AUDIO -> "Audio"
+                    ApplicationInfo.CATEGORY_IMAGE -> "Image"
+                    else -> "Other"
+                }
+                result.putString("category", category)
+            }
+            
+            // System app check
+            result.putBoolean("isSystemApp", (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0)
+            
+            // Target SDK
+            result.putInt("targetSdk", appInfo.targetSdkVersion)
+            
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GET_APP_DETAILS_ERROR", "Failed to get app details: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Get app shortcuts (static and dynamic)
+     */
+    @ReactMethod
+    fun getAppShortcuts(packageName: String, promise: Promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+                val launcherApps = reactApplicationContext
+                    .getSystemService(Context.LAUNCHER_APPS_SERVICE) as android.content.pm.LauncherApps
+                
+                val query = android.content.pm.LauncherApps.ShortcutQuery()
+                query.setQueryFlags(
+                    android.content.pm.LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
+                    android.content.pm.LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
+                    android.content.pm.LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED
+                )
+                query.setPackage(packageName)
+                
+                val shortcuts = launcherApps.getShortcuts(query, android.os.Process.myUserHandle())
+                
+                val result = WritableNativeArray()
+                if (shortcuts != null) {
+                    for (shortcut in shortcuts) {
+                        val shortcutInfo = WritableNativeMap()
+                        shortcutInfo.putString("id", shortcut.id)
+                        shortcutInfo.putString("shortLabel", shortcut.shortLabel?.toString())
+                        shortcutInfo.putString("longLabel", shortcut.longLabel?.toString())
+                        shortcutInfo.putBoolean("isDynamic", shortcut.isDynamic)
+                        shortcutInfo.putBoolean("isPinned", shortcut.isPinned)
+                        shortcutInfo.putBoolean("isDeclaredInManifest", shortcut.isDeclaredInManifest)
+                        result.pushMap(shortcutInfo)
+                    }
+                }
+                
+                promise.resolve(result)
+            } else {
+                // Shortcuts not supported before Android 7.1
+                promise.resolve(WritableNativeArray())
+            }
+        } catch (e: Exception) {
+            promise.reject("GET_SHORTCUTS_ERROR", "Failed to get app shortcuts: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Check if app supports adaptive icon
+     */
+    @ReactMethod
+    fun supportsAdaptiveIcon(packageName: String, promise: Promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val pm = reactApplicationContext.packageManager
+                val icon = pm.getApplicationIcon(packageName)
+                val isAdaptive = icon is android.graphics.drawable.AdaptiveIconDrawable
+                promise.resolve(isAdaptive)
+            } else {
+                promise.resolve(false)
+            }
+        } catch (e: Exception) {
+            promise.reject("CHECK_ADAPTIVE_ERROR", "Failed to check adaptive icon: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Get all launchable apps with enhanced metadata
+     */
+    @ReactMethod
+    fun getInstalledAppsDetailed(promise: Promise) {
+        try {
+            val pm = reactApplicationContext.packageManager
+            val mainIntent = Intent(Intent.ACTION_MAIN, null)
+            mainIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+            
+            val apps = pm.queryIntentActivities(mainIntent, 0)
+            val result = WritableNativeArray()
+            
+            for (resolveInfo in apps) {
+                val packageName = resolveInfo.activityInfo.packageName
+                
+                try {
+                    val appInfo = pm.getApplicationInfo(packageName, 0)
+                    val packageInfo = pm.getPackageInfo(packageName, 0)
+                    
+                    val appData = WritableNativeMap()
+                    appData.putString("packageName", packageName)
+                    appData.putString("appName", pm.getApplicationLabel(appInfo).toString())
+                    appData.putString("versionName", packageInfo.versionName ?: "")
+                    appData.putDouble("firstInstallTime", packageInfo.firstInstallTime.toDouble())
+                    appData.putDouble("lastUpdateTime", packageInfo.lastUpdateTime.toDouble())
+                    appData.putBoolean("isSystemApp", (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0)
+                    
+                    // Category (API 26+)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val category = when (appInfo.category) {
+                            ApplicationInfo.CATEGORY_GAME -> "Game"
+                            ApplicationInfo.CATEGORY_SOCIAL -> "Social"
+                            ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
+                            ApplicationInfo.CATEGORY_NEWS -> "News"
+                            ApplicationInfo.CATEGORY_VIDEO -> "Video"
+                            ApplicationInfo.CATEGORY_AUDIO -> "Audio"
+                            ApplicationInfo.CATEGORY_IMAGE -> "Image"
+                            else -> "Other"
+                        }
+                        appData.putString("category", category)
+                        
+                        // Check adaptive icon support
+                        val icon = pm.getApplicationIcon(packageName)
+                        appData.putBoolean("hasAdaptiveIcon", 
+                            icon is android.graphics.drawable.AdaptiveIconDrawable)
+                    }
+                    
+                    result.pushMap(appData)
+                } catch (e: Exception) {
+                    // Skip apps that cause errors
+                    continue
+                }
+            }
+            
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GET_APPS_DETAILED_ERROR", "Failed to get detailed app list: ${e.message}", e)
         }
     }
 

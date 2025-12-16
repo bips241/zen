@@ -4,11 +4,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
-
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
@@ -18,7 +15,6 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate;
 import expo.modules.ReactActivityDelegateWrapper;
 
 public class MainActivity extends ReactActivity {
-  private WindowInsetsControllerCompat windowInsetsController;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -28,61 +24,90 @@ public class MainActivity extends ReactActivity {
     setTheme(R.style.AppTheme);
     super.onCreate(null);
     
-    // Enable edge-to-edge display
-    Window window = getWindow();
-    WindowCompat.setDecorFitsSystemWindows(window, false);
-    
-    // Get the WindowInsetsController
-    windowInsetsController = WindowCompat.getInsetsController(window, window.getDecorView());
-    
-    // Configure behavior: transient bars that auto-hide after swipe
-    if (windowInsetsController != null) {
-      windowInsetsController.setSystemBarsBehavior(
-        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-      );
-    }
-    
-    // Add listener to keep hiding system bars when they appear
-    ViewCompat.setOnApplyWindowInsetsListener(window.getDecorView(), (view, windowInsets) -> {
-      // Auto-hide system bars immediately when they become visible
-      if (windowInsetsController != null) {
-        if (windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
-            || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())) {
-          view.postDelayed(() -> hideSystemUI(), 100);
-        }
-      }
-      return ViewCompat.onApplyWindowInsets(view, windowInsets);
-    });
-    
     // Initial hide
-    hideSystemUI();
+    hideSystemBars();
   }
 
   @Override
   public void onWindowFocusChanged(boolean hasFocus) {
     super.onWindowFocusChanged(hasFocus);
+    // Critical: Re-hide whenever window gains focus
+    // This handles screen on/off, app switch, etc.
     if (hasFocus) {
-      hideSystemUI();
+      hideSystemBars();
     }
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    hideSystemUI();
+    hideSystemBars();
   }
 
-  private void hideSystemUI() {
-    if (windowInsetsController != null) {
-      // Hide both status bar and navigation bar
-      windowInsetsController.hide(WindowInsetsCompat.Type.systemBars());
+  @Override
+  public void onBackPressed() {
+    // Disable back button for launcher (allowed for launchers)
+    // User must use gesture navigation or home button
+    // Do nothing - no-op
+  }
+
+  /**
+   * Maximum enforcement system bar hiding for launcher
+   * - Hides status bar and navigation bar
+   * - Prevents swipe-to-reveal (BEHAVIOR_SHOW_BARS_BY_TOUCH)
+   * - Requires explicit button press to show bars
+   */
+  private void hideSystemBars() {
+    Window window = getWindow();
+    
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      // API 30+ (Android 11+): Use WindowInsetsController
+      window.setDecorFitsSystemWindows(false);
+      
+      WindowInsetsController controller = window.getInsetsController();
+      if (controller != null) {
+        // Hide status bar and navigation bar
+        controller.hide(
+          WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()
+        );
+        
+        // CRITICAL: Disable swipe-to-show
+        // BEHAVIOR_SHOW_BARS_BY_TOUCH = bars only show on explicit touch/button
+        // This prevents swipe-up revealing navigation bar
+        controller.setSystemBarsBehavior(
+          WindowInsetsController.BEHAVIOR_SHOW_BARS_BY_TOUCH
+        );
+      }
+    } else {
+      // API < 30 (Android 10 and below): Use legacy flags
+      View decorView = window.getDecorView();
+      int flags = View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+      decorView.setSystemUiVisibility(flags);
     }
   }
 
-  public void showSystemUI() {
-    if (windowInsetsController != null) {
-      // Show both status bar and navigation bar
-      windowInsetsController.show(WindowInsetsCompat.Type.systemBars());
+  /**
+   * Show system bars (called from React Native via native module)
+   * Allows user to access system controls when needed
+   */
+  public void showSystemBars() {
+    Window window = getWindow();
+    
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      WindowInsetsController controller = window.getInsetsController();
+      if (controller != null) {
+        controller.show(
+          WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()
+        );
+      }
+    } else {
+      View decorView = window.getDecorView();
+      decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
     }
   }
 

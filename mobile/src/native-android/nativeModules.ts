@@ -142,15 +142,203 @@ interface ZenNotificationModule {
 }
 
 // ============================================================================
+// DND (Do Not Disturb) Module
+// ============================================================================
+
+export interface DNDResult {
+  success?: boolean;
+  enabled?: boolean;
+  message?: string;
+}
+
+interface DNDModule {
+  isDNDEnabled(): Promise<boolean>;
+  hasDNDPermission(): Promise<boolean>;
+  requestDNDPermission(): Promise<boolean>;
+  enableDND(): Promise<boolean>;
+  disableDND(): Promise<boolean>;
+  toggleDND(): Promise<DNDResult>;
+}
+
+// ============================================================================
+// Focus Enforcement Module
+// ============================================================================
+
+interface FocusEnforcementModule {
+  startEnforcement(
+    blockedApps: string[],
+    goalMinutes: number
+  ): Promise<boolean>;
+  stopEnforcement(): Promise<boolean>;
+  isEnforcementActive(): Promise<boolean>;
+  getBlockedPackages(): Promise<string[]>;
+}
+
+// ============================================================================
+// Focus Notification Module
+// ============================================================================
+
+interface SuppressedNotification {
+  packageName: string;
+  appName: string;
+  title: string;
+  text: string;
+  timestamp: number;
+}
+
+interface FocusNotificationModule {
+  setFocusMode(
+    enabled: boolean,
+    suppressedPackages: string[]
+  ): Promise<boolean>;
+  isFocusModeActive(): Promise<boolean>;
+  getSuppressedNotifications(): Promise<SuppressedNotification[]>;
+  clearSuppressedNotifications(): Promise<boolean>;
+  getSuppressedCount(): Promise<number>;
+}
+
+// ============================================================================
+// Power Module
+// ============================================================================
+
+interface BatteryInfo {
+  level: number;
+  isCharging: boolean;
+  status?: number;
+  isFull?: boolean;
+}
+
+interface PowerStatus {
+  batteryLevel: number;
+  isCharging: boolean;
+  isPowerSaveMode?: boolean;
+  isScreenOn: boolean;
+  isIgnoringBatteryOptimizations?: boolean;
+  isDeviceIdleMode?: boolean;
+}
+
+interface PowerModule {
+  getBatteryInfo(): Promise<BatteryInfo>;
+  isIgnoringBatteryOptimizations(): Promise<boolean>;
+  requestIgnoreBatteryOptimizations(): Promise<boolean>;
+  isPowerSaveMode(): Promise<boolean>;
+  isDeviceIdleMode(): Promise<boolean>;
+  isScreenOn(): Promise<boolean>;
+  getPowerStatus(): Promise<PowerStatus>;
+}
+
+// ============================================================================
+// Wallpaper Module
+// ============================================================================
+
+interface WallpaperModule {
+  setSolidColor(colorHex: string): Promise<boolean>;
+  setWallpaperFromUri(imageUri: string): Promise<boolean>;
+  clearWallpaper(): Promise<boolean>;
+  isWallpaperSupported(): Promise<boolean>;
+  isSetWallpaperAllowed(): Promise<boolean>;
+  getDesiredMinimumWidth(): Promise<number>;
+  getDesiredMinimumHeight(): Promise<number>;
+  setBlackWallpaper(): Promise<boolean>;
+  setDarkGrayWallpaper(): Promise<boolean>;
+}
+
+// ============================================================================
+// Backup Module
+// ============================================================================
+
+interface BackupInfo {
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  lastModified: number;
+  backupTimestamp?: number;
+  appVersion?: string;
+}
+
+interface ExportResult {
+  filePath: string;
+  fileName: string;
+  fileSize: number;
+}
+
+interface BackupModule {
+  exportSettings(settings: any, backupName?: string): Promise<ExportResult>;
+  importSettings(filePath: string): Promise<any>;
+  listBackups(): Promise<BackupInfo[]>;
+  deleteBackup(filePath: string): Promise<boolean>;
+  getBackupDirectory(): Promise<string>;
+  isExternalStorageAvailable(): Promise<boolean>;
+}
+
+// ============================================================================
+// Gesture Module
+// ============================================================================
+
+interface GestureModule {
+  initialize(): Promise<boolean>;
+  configure(
+    swipeThresholdPx: number,
+    velocityThresholdPx: number
+  ): Promise<boolean>;
+  enableGestures(): Promise<boolean>;
+  disableGestures(): Promise<boolean>;
+  isEnabled(): Promise<boolean>;
+  processTouchEvent(x: number, y: number, action: string): Promise<boolean>;
+}
+
+// ============================================================================
+// Accessibility Module
+// ============================================================================
+
+interface AccessibilityModule {
+  isAccessibilityServiceEnabled(): Promise<boolean>;
+  requestAccessibilityPermission(): Promise<boolean>;
+  setFocusMode(enabled: boolean, blockedPackages: string[]): Promise<boolean>;
+  isFocusModeActive(): Promise<boolean>;
+  getBlockedPackages(): Promise<string[]>;
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
-const { ZenLauncher, AppBlocker, UsageStats, ZenNotification } = NativeModules;
+const {
+  ZenLauncher,
+  AppBlocker,
+  UsageStats,
+  ZenNotification,
+  DNDModule: DND,
+  FocusEnforcement,
+  FocusNotification,
+  PowerModule: Power,
+  WallpaperModule: Wallpaper,
+  BackupModule: Backup,
+  GestureModule: Gesture,
+  AccessibilityModule: Accessibility,
+} = NativeModules;
 
 export const zenLauncher = ZenLauncher as ZenLauncherModule;
 export const appBlocker = AppBlocker as AppBlockerModule;
 export const usageStats = UsageStats as UsageStatsModule;
 export const zenNotification = ZenNotification as ZenNotificationModule;
+export const dndModule = DND as DNDModule;
+export const focusEnforcement = FocusEnforcement as FocusEnforcementModule;
+export const focusNotification = FocusNotification as FocusNotificationModule;
+export const powerModule = Power as PowerModule;
+export const wallpaperModule = Wallpaper as WallpaperModule;
+export const backupModule = Backup as BackupModule;
+export const gestureModule = Gesture as GestureModule;
+export const accessibilityModule = Accessibility as AccessibilityModule;
+
+// Export types
+export type {
+  SuppressedNotification,
+  BatteryInfo,
+  PowerStatus,
+  BackupInfo,
+  ExportResult,
+};
 
 // Type guards
 export const isNativeModuleAvailable = (moduleName: string): boolean => {
@@ -162,6 +350,14 @@ export const areAllModulesAvailable = (): boolean => {
     isNativeModuleAvailable("ZenLauncher") &&
     isNativeModuleAvailable("AppBlocker") &&
     isNativeModuleAvailable("UsageStats") &&
-    isNativeModuleAvailable("ZenNotification")
+    isNativeModuleAvailable("ZenNotification") &&
+    isNativeModuleAvailable("DNDModule") &&
+    isNativeModuleAvailable("FocusEnforcement") &&
+    isNativeModuleAvailable("FocusNotification") &&
+    isNativeModuleAvailable("PowerModule") &&
+    isNativeModuleAvailable("WallpaperModule") &&
+    isNativeModuleAvailable("BackupModule") &&
+    isNativeModuleAvailable("GestureModule") &&
+    isNativeModuleAvailable("AccessibilityModule")
   );
 };

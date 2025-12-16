@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Start Focus Session -->
+    <shortcut
+        android:shortcutId="start_focus"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_focus_short"
+        android:shortcutLongLabel="@string/shortcut_focus_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.anonymous.focusshell"
+            android:targetClass="com.anonymous.focusshell.MainActivity"
+            android:data="zen://focus"/>
+        <categories android:name="android.shortcut.conversation"/>
+    </shortcut>
+    
+    <!-- Start Tratak Meditation -->
+    <shortcut
+        android:shortcutId="start_tratak"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_tratak_short"
+        android:shortcutLongLabel="@string/shortcut_tratak_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.anonymous.focusshell"
+            android:targetClass="com.anonymous.focusshell.MainActivity"
+            android:data="zen://tratak"/>
+        <categories android:name="android.shortcut.conversation"/>
+    </shortcut>
+    
+    <!-- View Stats -->
+    <shortcut
+        android:shortcutId="view_stats"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_stats_short"
+        android:shortcutLongLabel="@string/shortcut_stats_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.anonymous.focusshell"
+            android:targetClass="com.anonymous.focusshell.MainActivity"
+            android:data="zen://stats"/>
+        <categories android:name="android.shortcut.conversation"/>
+    </shortcut>
+</shortcuts>

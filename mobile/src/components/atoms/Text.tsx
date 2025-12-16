@@ -38,5 +38,6 @@ export default function Text({
 const styles = StyleSheet.create({
   base: {
     color: colors.white,
+    fontFamily: "ZenDots-Regular", // Default font for all text
   },
 });

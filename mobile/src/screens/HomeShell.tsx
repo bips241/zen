@@ -1,219 +1,156 @@
 /**
- * HomeShell Screen - Custom Launcher Home
- *
- * Minimalist launcher with 3 customizable rows:
- * - Row 1: User's favorite apps (customizable)
- * - Row 2: Focus/Productivity methods (Tratak, Pomodoro, Matrix, Forest)
- * - Row 3: Essential actions (Call, Message, DND)
+ * HomeShell Screen - Minimalist Launcher
+ * Based on Figma design with frosted glass cards
  */
 
-import React, { useState, useEffect } from "react";
-import {
-  SafeAreaView,
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
-import { Text, Spacer } from "../components/atoms";
-import { colors, spacing } from "../theme";
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
+import { Text } from "../components/atoms";
+import { colors } from "../theme";
 import { launcher } from "../services/nativeBridge";
 
-// Icon Component for Apps
-interface AppIconProps {
-  icon: string;
-  onPress: () => void;
-}
-
-const AppIcon: React.FC<AppIconProps> = ({ icon, onPress }) => (
-  <TouchableOpacity onPress={onPress} style={styles.appIcon}>
-    <Text style={styles.appIconEmoji}>{icon}</Text>
-  </TouchableOpacity>
-);
-
-// Row Container Component
-interface AppRowProps {
-  children: React.ReactNode;
-}
-
-const AppRow: React.FC<AppRowProps> = ({ children }) => (
-  <View style={styles.appRow}>{children}</View>
-);
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function HomeShell({ navigation }: any) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Hide system UI on mount
   useEffect(() => {
-    // Initial hide
     launcher.hideSystemUI();
-
-    // Re-hide periodically as a safety measure (less aggressive than before)
-    const interval = setInterval(() => {
-      launcher.hideSystemUI();
-    }, 3000); // Every 3 seconds instead of 500ms
-
-    return () => clearInterval(interval);
+    const hideInterval = setInterval(() => launcher.hideSystemUI(), 3000);
+    return () => clearInterval(hideInterval);
   }, []);
 
-  // Update time every second for smooth display
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   const formatTime = (date: Date) => {
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+    const h = date.getHours().toString().padStart(2, "0");
+    const m = date.getMinutes().toString().padStart(2, "0");
+    return `${h}:${m}`;
   };
 
-  const formatDate = (date: Date) => {
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return `${days[date.getDay()]}, ${
-      months[date.getMonth()]
-    } ${date.getDate()}`;
-  };
-
-  // App launch handlers
-  const handleLaunchApp = async (packageName: string) => {
+  const handleLaunchApp = async (pkg: string) => {
     try {
-      await launcher.launchApp(packageName);
-    } catch (error) {
-      console.error("Failed to launch app:", error);
+      await launcher.launchApp(pkg);
+    } catch (err) {
+      console.error("App launch failed:", err);
     }
   };
 
-  // Focus method handlers
   const handleTratak = () => {
-    // navigate to Tratak screen
     try {
-      // @ts-ignore - navigation type from tab navigator
       navigation.navigate("Tratak");
     } catch (e) {
-      console.log("Navigation to Tratak failed", e);
+      console.log("Navigation failed", e);
     }
-  };
-
-  const handlePomodoro = () => {
-    console.log("Open Pomodoro Timer");
-    // TODO: Navigate to Pomodoro screen
-  };
-
-  const handleMatrix = () => {
-    console.log("Open Eisenhower Matrix");
-    // TODO: Navigate to Matrix screen
-  };
-
-  const handleForest = () => {
-    console.log("Open Forest Focus");
-    // TODO: Navigate to Forest screen
-  };
-
-  // Essential action handlers
-  const handleCall = async () => {
-    await handleLaunchApp("com.google.android.dialer");
-  };
-
-  const handleMessage = async () => {
-    await handleLaunchApp("com.google.android.apps.messaging");
-  };
-
-  const handleDND = () => {
-    console.log("Toggle DND");
-    // TODO: Toggle Do Not Disturb mode
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        {/* Time Display - Large and Centered */}
-        <View style={styles.timeSection}>
-          <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-          <Spacer size="xs" />
-          <Text
-            variant="small"
-            color={colors.gray[500]}
-            style={styles.dateText}
-          >
-            {formatDate(currentTime)}
-          </Text>
+      {/* Background */}
+      <View style={styles.background} />
+
+      {/* Time Display */}
+      <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+
+      {/* Notification Bell */}
+      <TouchableOpacity style={styles.notificationBell}>
+        <Text style={styles.bellIcon}>🔔</Text>
+      </TouchableOpacity>
+
+      {/* Productivity Tracker Card */}
+      <View style={styles.productivityCard}>
+        <Text style={styles.productivityTitle}>productivity tracker</Text>
+
+        {/* Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View style={styles.progressFill} />
+          </View>
+          <Text style={styles.progressLabel}>30%</Text>
+          <Text style={styles.timeLabel}>120 min</Text>
         </View>
+      </View>
 
-        <Spacer size="xxl" />
-
-        {/* Row 1: User's Favorite Apps */}
-        <AppRow>
-          <AppIcon
-            icon="🌐"
+      {/* Main Actions Container */}
+      <View style={styles.actionsContainer}>
+        {/* Row 1: Essential Apps */}
+        <View style={styles.appRow}>
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={() => handleLaunchApp("com.android.chrome")}
-          />
-          <AppIcon
-            icon="📦"
+          >
+            <Text style={styles.iconEmoji}>🌐</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={() => handleLaunchApp("com.google.android.gm")}
-          />
-          <AppIcon
-            icon="🔍"
+          >
+            <Text style={styles.iconEmoji}>📧</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={() =>
               handleLaunchApp("com.google.android.googlequicksearchbox")
             }
-          />
-          <AppIcon
-            icon="⚙️"
+          >
+            <Text style={styles.iconEmoji}>🔍</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={() => handleLaunchApp("com.android.settings")}
-          />
-        </AppRow>
+          >
+            <Text style={styles.iconEmoji}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
 
-        <Spacer size="lg" />
+        {/* Row 2: Focus Methods */}
+        <View style={styles.appRow}>
+          <TouchableOpacity style={styles.iconButton} onPress={handleTratak}>
+            <Text style={styles.iconEmoji}>🕯️</Text>
+          </TouchableOpacity>
 
-        {/* Row 2: Focus & Productivity Methods */}
-        <AppRow>
-          <AppIcon icon="🕯️" onPress={handleTratak} />
-          <AppIcon icon="⏱️" onPress={handlePomodoro} />
-          <AppIcon icon="📊" onPress={handleMatrix} />
-          <AppIcon icon="🌳" onPress={handleForest} />
-        </AppRow>
+          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+            <Text style={styles.iconEmoji}>⏱️</Text>
+          </TouchableOpacity>
 
-        <Spacer size="lg" />
+          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+            <Text style={styles.iconEmoji}>📊</Text>
+          </TouchableOpacity>
 
-        {/* Row 3: Essential Actions */}
-        <AppRow>
-          <AppIcon icon="📞" onPress={handleCall} />
-          <AppIcon icon="💬" onPress={handleMessage} />
-          <AppIcon icon="🔕" onPress={handleDND} />
-        </AppRow>
+          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+            <Text style={styles.iconEmoji}>🌳</Text>
+          </TouchableOpacity>
+        </View>
 
-        <Spacer size="xxl" />
-      </ScrollView>
+        {/* Row 3: Core Actions */}
+        <View style={styles.appRow}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => handleLaunchApp("com.google.android.dialer")}
+          >
+            <Text style={styles.iconEmoji}>📞</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => handleLaunchApp("com.google.android.apps.messaging")}
+          >
+            <Text style={styles.iconEmoji}>💬</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+            <Text style={styles.iconEmoji}>🔕</Text>
+          </TouchableOpacity>
+
+          <View style={styles.iconButton} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -221,54 +158,174 @@ export default function HomeShell({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.black,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl,
+    backgroundColor: "#000000",
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
   },
-  scrollView: {
-    flex: 1,
+
+  background: {
+    position: "absolute",
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    backgroundColor: "#000000",
   },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    justifyContent: "center",
-  },
-  timeSection: {
-    alignItems: "center",
-    marginBottom: spacing.xxl,
-  },
+
   timeText: {
-    fontSize: 72,
-    fontWeight: "200",
-    color: colors.white,
-    letterSpacing: -2,
+    position: "absolute",
+    top: SCREEN_HEIGHT * 0.1,
+    alignSelf: "center",
+    fontFamily: "ZenDots-Regular",
+    fontSize: 43,
+    lineHeight: 52,
+    color: "#FFFFFF",
+    textShadowColor: "rgba(255, 253, 253, 0.3)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 39,
   },
-  dateText: {
-    fontSize: 16,
-    opacity: 0.6,
+
+  notificationBell: {
+    position: "absolute",
+    top: SCREEN_HEIGHT * 0.06,
+    right: 20,
+    width: 35,
+    height: 35,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
+
+  bellIcon: {
+    fontSize: 18,
+  },
+
+  productivityCard: {
+    position: "absolute",
+    left: 10,
+    top: SCREEN_HEIGHT * 0.25,
+    width: SCREEN_WIDTH - 20,
+    height: 113,
+    backgroundColor: "rgba(0, 0, 0, 1)",
+    borderRadius: 29,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 10,
+    padding: 20,
+  },
+
+  productivityTitle: {
+    fontFamily: "ZenDots-Regular",
+    fontSize: 13,
+    lineHeight: 16,
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 15,
+  },
+
+  progressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 10,
+    borderColor: "#fffdfdff",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+
+  progressBar: {
+    flex: 1,
+    height: 10,
+    backgroundColor: "#000000",
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: "#FFFBFB",
+    shadowColor: "rgba(255, 250, 250, 0.25)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 5,
+    elevation: 5,
+    overflow: "hidden",
+  },
+
+  progressFill: {
+    width: "30%",
+    height: "100%",
+    backgroundColor: "#D9D9D9",
+    borderRadius: 13,
+  },
+
+  progressLabel: {
+    fontFamily: "ZenDots-Regular",
+    fontSize: 12,
+    lineHeight: 14,
+    color: "#FFFFFF",
+    marginLeft: 10,
+  },
+
+  timeLabel: {
+    fontFamily: "ZenDots-Regular",
+    fontSize: 12,
+    lineHeight: 14,
+    color: "#FFFFFF",
+    marginLeft: 10,
+  },
+
+  actionsContainer: {
+    position: "absolute",
+    left: 10,
+    top: SCREEN_HEIGHT * 0.66,
+    width: SCREEN_WIDTH - 20,
+    height: 212,
+    backgroundColor: "rgba(0, 0, 0, 1)",
+    borderRadius: 29,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 8,
+    padding: 15,
+    justifyContent: "space-between",
+  },
+
   appRow: {
     flexDirection: "row",
-    backgroundColor: colors.white,
-    borderRadius: 40,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    justifyContent: "space-around",
+    height: 53,
+    backgroundColor: "#FFFAFA",
+    borderRadius: 29,
+    shadowColor: "rgba(178, 171, 171, 0.5)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
     alignItems: "center",
-    elevation: 4,
-    shadowColor: colors.white,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    justifyContent: "space-around",
+    paddingHorizontal: 10,
   },
-  appIcon: {
+
+  iconButton: {
+    width: 50,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
-    width: 56,
-    height: 56,
+    borderRadius: 25,
   },
-  appIconEmoji: {
+
+  iconEmoji: {
     fontSize: 28,
     textAlign: "center",
   },
