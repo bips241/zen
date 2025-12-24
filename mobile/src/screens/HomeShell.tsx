@@ -1,10 +1,18 @@
 /**
  * HomeShell Screen - Minimalist Launcher
  * Based on Figma design with frosted glass cards
+ * Enhanced with animations and focus modes styling
  */
 
-import React, { useEffect, useState } from "react";
-import { View, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  Animated,
+  Easing,
+} from "react-native";
 import { Text } from "../components/atoms";
 import { colors } from "../theme";
 import { launcher } from "../services/nativeBridge";
@@ -13,6 +21,12 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function HomeShell({ navigation }: any) {
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideUpAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     launcher.hideSystemUI();
@@ -23,6 +37,38 @@ export default function HomeShell({ navigation }: any) {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Entrance animations
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Progress bar animation
+    Animated.timing(progressAnim, {
+      toValue: 30,
+      duration: 1000,
+      delay: 500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
   }, []);
 
   const formatTime = (date: Date) => {
@@ -47,40 +93,100 @@ export default function HomeShell({ navigation }: any) {
     }
   };
 
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ["0%", "100%"],
+  });
+
   return (
     <View style={styles.container}>
       {/* Background */}
       <View style={styles.background} />
 
-      {/* Time Display */}
-      <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+      {/* Header Buttons */}
+      <Animated.View style={[styles.headerButtons, { opacity: fadeAnim }]}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("AppDrawer")}
+        >
+          <Text style={styles.headerIcon}>☰</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerButton}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("Settings")}
+        >
+          <Text style={styles.headerIcon}>⚙️</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
-      {/* Notification Bell */}
-      <TouchableOpacity style={styles.notificationBell}>
-        <Text style={styles.bellIcon}>🔔</Text>
-      </TouchableOpacity>
+      {/* Time Display */}
+      <Animated.View
+        style={[
+          styles.timeContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+      </Animated.View>
 
       {/* Productivity Tracker Card */}
-      <View style={styles.productivityCard}>
+      <Animated.View
+        style={[
+          styles.productivityCard,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }],
+          },
+        ]}
+      >
         <Text style={styles.productivityTitle}>productivity tracker</Text>
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View style={styles.progressFill} />
+            <Animated.View
+              style={[styles.progressFill, { width: progressWidth }]}
+            />
           </View>
           <Text style={styles.progressLabel}>30%</Text>
           <Text style={styles.timeLabel}>120 min</Text>
         </View>
-      </View>
+      </Animated.View>
+
+      {/* Section Title */}
+      <Animated.View
+        style={[
+          styles.sectionTitleContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }],
+          },
+        ]}
+      >
+        <Text style={styles.sectionTitle}>FOCUS MODES</Text>
+      </Animated.View>
 
       {/* Main Actions Container */}
-      <View style={styles.actionsContainer}>
+      <Animated.View
+        style={[
+          styles.actionsContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }],
+          },
+        ]}
+      >
         {/* Row 1: Essential Apps */}
-        <View style={styles.appRow}>
+        <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => handleLaunchApp("com.android.chrome")}
+            activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>🌐</Text>
           </TouchableOpacity>
@@ -88,6 +194,7 @@ export default function HomeShell({ navigation }: any) {
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => handleLaunchApp("com.google.android.gm")}
+            activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>📧</Text>
           </TouchableOpacity>
@@ -97,6 +204,7 @@ export default function HomeShell({ navigation }: any) {
             onPress={() =>
               handleLaunchApp("com.google.android.googlequicksearchbox")
             }
+            activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>🔍</Text>
           </TouchableOpacity>
@@ -104,35 +212,57 @@ export default function HomeShell({ navigation }: any) {
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => handleLaunchApp("com.android.settings")}
+            activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>⚙️</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Row 2: Focus Methods */}
-        <View style={styles.appRow}>
-          <TouchableOpacity style={styles.iconButton} onPress={handleTratak}>
+        <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={handleTratak}
+            activeOpacity={0.7}
+          >
             <Text style={styles.iconEmoji}>🕯️</Text>
+            <Text style={styles.iconLabel}>Tratak</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("Pomodoro")}
+            activeOpacity={0.7}
+          >
             <Text style={styles.iconEmoji}>⏱️</Text>
+            <Text style={styles.iconLabel}>Pomodoro</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("EisenhowerMatrix")}
+            activeOpacity={0.7}
+          >
             <Text style={styles.iconEmoji}>📊</Text>
+            <Text style={styles.iconLabel}>Matrix</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("ForestFocus")}
+            activeOpacity={0.7}
+          >
             <Text style={styles.iconEmoji}>🌳</Text>
+            <Text style={styles.iconLabel}>Forest</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Row 3: Core Actions */}
-        <View style={styles.appRow}>
+        <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => handleLaunchApp("com.google.android.dialer")}
+            activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>📞</Text>
           </TouchableOpacity>
@@ -140,17 +270,22 @@ export default function HomeShell({ navigation }: any) {
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => handleLaunchApp("com.google.android.apps.messaging")}
+            activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>💬</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => {}}
+            activeOpacity={0.7}
+          >
             <Text style={styles.iconEmoji}>🔕</Text>
           </TouchableOpacity>
 
           <View style={styles.iconButton} />
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </View>
   );
 }
@@ -170,10 +305,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
   },
 
-  timeText: {
+  timeContainer: {
     position: "absolute",
     top: SCREEN_HEIGHT * 0.1,
     alignSelf: "center",
+  },
+
+  timeText: {
     fontFamily: "ZenDots-Regular",
     fontSize: 43,
     lineHeight: 52,
@@ -183,6 +321,38 @@ const styles = StyleSheet.create({
     textShadowRadius: 39,
   },
 
+  headerButtons: {
+    position: "absolute",
+    top: SCREEN_HEIGHT * 0.04,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    zIndex: 10,
+  },
+
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+
+  headerIcon: {
+    fontSize: 20,
+    color: "#FFFFFF",
+  },
+
   notificationBell: {
     position: "absolute",
     top: SCREEN_HEIGHT * 0.06,
@@ -190,14 +360,14 @@ const styles = StyleSheet.create({
     width: 35,
     height: 35,
     borderRadius: 22,
-    backgroundColor: "rgba(0, 0, 0, 1)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#FFFFFF",
+    shadowColor: "rgba(255, 250, 250, 0.1)",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 1,
     shadowRadius: 8,
     elevation: 5,
   },
@@ -212,14 +382,14 @@ const styles = StyleSheet.create({
     top: SCREEN_HEIGHT * 0.25,
     width: SCREEN_WIDTH - 20,
     height: 113,
-    backgroundColor: "rgba(0, 0, 0, 1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 29,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
+    shadowOpacity: 0.1,
+    shadowRadius: 13,
     elevation: 10,
     padding: 20,
   },
@@ -249,11 +419,9 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 10,
-    backgroundColor: "#000000",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 13,
-    borderWidth: 1,
-    borderColor: "#FFFBFB",
-    shadowColor: "rgba(255, 250, 250, 0.25)",
+    shadowColor: "rgba(255, 250, 250, 0.15)",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 5,
@@ -262,9 +430,8 @@ const styles = StyleSheet.create({
   },
 
   progressFill: {
-    width: "30%",
     height: "100%",
-    backgroundColor: "#D9D9D9",
+    backgroundColor: "#FFFFFF",
     borderRadius: 13,
   },
 
@@ -284,21 +451,36 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
 
+  sectionTitleContainer: {
+    position: "absolute",
+    left: 20,
+    top: SCREEN_HEIGHT * 0.61,
+    width: SCREEN_WIDTH - 40,
+  },
+
+  sectionTitle: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.6)",
+    letterSpacing: 1.5,
+    fontWeight: "400",
+    marginBottom: 8,
+  },
+
   actionsContainer: {
     position: "absolute",
     left: 10,
     top: SCREEN_HEIGHT * 0.66,
     width: SCREEN_WIDTH - 20,
     height: 212,
-    backgroundColor: "rgba(0, 0, 0, 1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 29,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 13,
+    elevation: 10,
     padding: 15,
     justifyContent: "space-between",
   },
@@ -306,27 +488,38 @@ const styles = StyleSheet.create({
   appRow: {
     flexDirection: "row",
     height: 53,
-    backgroundColor: "#FFFAFA",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 29,
-    shadowColor: "rgba(178, 171, 171, 0.5)",
+    shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 14,
+    shadowOpacity: 0.15,
+    shadowRadius: 13,
+    elevation: 10,
     alignItems: "center",
     justifyContent: "space-around",
     paddingHorizontal: 10,
   },
 
   iconButton: {
-    width: 50,
-    height: 50,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 25,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    minWidth: 60,
+    transform: [{ scale: 1 }],
   },
 
   iconEmoji: {
-    fontSize: 28,
+    fontSize: 24,
+    textAlign: "center",
+    marginBottom: 2,
+  },
+
+  iconLabel: {
+    fontFamily: "ZenDots-Regular",
+    fontSize: 8,
+    color: "rgba(255, 255, 255, 0.6)",
     textAlign: "center",
   },
 });

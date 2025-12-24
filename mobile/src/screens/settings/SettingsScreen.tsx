@@ -4,7 +4,7 @@
  * App configuration and permissions management
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -12,10 +12,9 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Animated,
+  Text,
 } from "react-native";
-import { Text, Container, Spacer, Button } from "../../components/atoms";
-import { Card } from "../../components/molecules";
-import { colors, spacing } from "../../theme";
 import { launcher, blocker, notifications } from "../../services/nativeBridge";
 import { useStore } from "../../store";
 
@@ -30,8 +29,23 @@ export default function SettingsScreen() {
   const preferences = useStore((state) => state.preferences);
   const updatePreferences = useStore((state) => state.updatePreferences);
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
   useEffect(() => {
     checkPermissions();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const checkPermissions = async () => {
@@ -129,238 +143,342 @@ export default function SettingsScreen() {
   };
 
   return (
-    <Container padding="lg">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Text variant="title">Settings</Text>
-        <Text variant="small" color={colors.gray[500]}>
-          Configure app and permissions
-        </Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <Text style={styles.headerTitle}>⚙️ Settings</Text>
+        <Text style={styles.headerSubtitle}>Configure app and permissions</Text>
+      </Animated.View>
 
-        <Spacer size="xl" />
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          {/* Permissions Section */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Permissions</Text>
 
-        {/* Permissions Section */}
-        <Text variant="heading">Permissions</Text>
-        <Spacer size="md" />
-
-        {/* Default Launcher */}
-        <Card>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text variant="bodyBold">Default Launcher</Text>
-              <Text variant="small" color={colors.gray[500]}>
-                Set Zen as home screen
-              </Text>
-            </View>
-            {isDefaultLauncher ? (
-              <View style={styles.statusBadge}>
-                <Text variant="small" color={colors.success}>
-                  ✓ Active
-                </Text>
+            {/* Default Launcher */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardTitle}>Default Launcher</Text>
+                  <Text style={styles.cardSubtitle}>Set Zen as home screen</Text>
+                </View>
+                {isDefaultLauncher ? (
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>✓ Active</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleSetAsDefaultLauncher}
+                  >
+                    <Text style={styles.actionButtonText}>Set Default</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            ) : (
-              <Button
-                label="Set Default"
-                onPress={handleSetAsDefaultLauncher}
-                variant="primary"
-              />
-            )}
-          </View>
-        </Card>
-
-        <Spacer size="sm" />
-
-        {/* Usage Stats Permission */}
-        <Card>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text variant="bodyBold">Usage Stats Access</Text>
-              <Text variant="small" color={colors.gray[500]}>
-                Track app usage time
-              </Text>
             </View>
-            {hasUsagePermission ? (
-              <View style={styles.statusBadge}>
-                <Text variant="small" color={colors.success}>
-                  ✓ Granted
-                </Text>
+
+            {/* Usage Stats Permission */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardTitle}>Usage Stats Access</Text>
+                  <Text style={styles.cardSubtitle}>Track app usage time</Text>
+                </View>
+                {hasUsagePermission ? (
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>✓ Granted</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleRequestUsagePermission}
+                  >
+                    <Text style={styles.actionButtonText}>Grant</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            ) : (
-              <Button
-                label="Grant"
-                onPress={handleRequestUsagePermission}
-                variant="secondary"
-              />
-            )}
-          </View>
-        </Card>
-
-        <Spacer size="sm" />
-
-        {/* Fullscreen Mode */}
-        <Card>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text variant="bodyBold">Fullscreen Mode</Text>
-              <Text variant="small" color={colors.gray[500]}>
-                Hide status bar and navigation
-              </Text>
             </View>
-            <Switch
-              value={systemUIHidden}
-              onValueChange={handleToggleSystemUI}
-              trackColor={{ false: colors.gray[700], true: colors.accent }}
-              thumbColor={systemUIHidden ? colors.white : colors.gray[500]}
-            />
-          </View>
-        </Card>
 
-        <Spacer size="sm" />
-
-        {/* Notification Permission */}
-        <Card>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text variant="bodyBold">Notification Access</Text>
-              <Text variant="small" color={colors.gray[500]}>
-                Block notifications during focus
-              </Text>
-            </View>
-            {hasNotificationPermission ? (
-              <View style={styles.statusBadge}>
-                <Text variant="small" color={colors.success}>
-                  ✓ Granted
-                </Text>
+            {/* Fullscreen Mode */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardTitle}>Fullscreen Mode</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Hide status bar and navigation
+                  </Text>
+                </View>
+                <Switch
+                  value={systemUIHidden}
+                  onValueChange={handleToggleSystemUI}
+                  trackColor={{ false: "#222222", true: "#00FF88" }}
+                  thumbColor={systemUIHidden ? "#FFFFFF" : "#888888"}
+                />
               </View>
-            ) : (
-              <Button
-                label="Grant"
-                onPress={handleRequestNotificationPermission}
-                variant="secondary"
-              />
-            )}
-          </View>
-        </Card>
-
-        <Spacer size="xl" />
-
-        {/* Focus Settings */}
-        <Text variant="heading">Focus Settings</Text>
-        <Spacer size="md" />
-
-        {/* Block Notifications Toggle */}
-        <Card>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text variant="bodyBold">Block Notifications</Text>
-              <Text variant="small" color={colors.gray[500]}>
-                Hide notifications during sessions
-              </Text>
             </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={handleToggleNotifications}
-              trackColor={{ false: colors.gray[700], true: colors.accentDark }}
-              thumbColor={
-                notificationsEnabled ? colors.accent : colors.gray[500]
-              }
-              disabled={!hasNotificationPermission}
-            />
-          </View>
-        </Card>
 
-        <Spacer size="xl" />
+            {/* Notification Permission */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardTitle}>Notification Access</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Block notifications during focus
+                  </Text>
+                </View>
+                {hasNotificationPermission ? (
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>✓ Granted</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleRequestNotificationPermission}
+                  >
+                    <Text style={styles.actionButtonText}>Grant</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </Animated.View>
 
-        {/* Daily Goal Settings */}
-        <Text variant="heading">Daily Goal</Text>
-        <Spacer size="md" />
+          {/* Focus Settings */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Focus Settings</Text>
 
-        <Card>
-          <Text variant="bodyBold">Focus Time Goal</Text>
-          <Text variant="small" color={colors.gray[500]}>
-            Current: {preferences.dailyGoalMinutes} minutes
-          </Text>
-          <Spacer size="md" />
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardTitle}>Block Notifications</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Hide notifications during sessions
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationsEnabled}
+                  onValueChange={handleToggleNotifications}
+                  trackColor={{ false: "#222222", true: "#00FF88" }}
+                  thumbColor={notificationsEnabled ? "#FFFFFF" : "#888888"}
+                  disabled={!hasNotificationPermission}
+                />
+              </View>
+            </View>
+          </Animated.View>
 
-          <View style={styles.goalButtons}>
-            {[30, 60, 90, 120, 180, 240].map((minutes) => (
-              <TouchableOpacity
-                key={minutes}
-                style={[
-                  styles.goalButton,
-                  preferences.dailyGoalMinutes === minutes &&
-                    styles.goalButtonActive,
-                ]}
-                onPress={() => handleDailyGoalChange(minutes)}
-              >
-                <Text
-                  variant="small"
-                  color={
-                    preferences.dailyGoalMinutes === minutes
-                      ? colors.black
-                      : colors.white
-                  }
-                >
-                  {minutes}m
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Card>
+          {/* Daily Goal Settings */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Daily Goal</Text>
 
-        <Spacer size="xl" />
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Focus Time Goal</Text>
+              <Text style={styles.cardSubtitle}>
+                Current: {preferences.dailyGoalMinutes} minutes
+              </Text>
 
-        {/* About Section */}
-        <Text variant="heading">About</Text>
-        <Spacer size="md" />
+              <View style={styles.goalButtons}>
+                {[30, 60, 90, 120, 180, 240].map((minutes) => (
+                  <TouchableOpacity
+                    key={minutes}
+                    style={[
+                      styles.goalButton,
+                      preferences.dailyGoalMinutes === minutes &&
+                        styles.goalButtonActive,
+                    ]}
+                    onPress={() => handleDailyGoalChange(minutes)}
+                  >
+                    <Text
+                      style={[
+                        styles.goalButtonText,
+                        preferences.dailyGoalMinutes === minutes &&
+                          styles.goalButtonTextActive,
+                      ]}
+                    >
+                      {minutes}m
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </Animated.View>
 
-        <Card>
-          <Text variant="bodyBold">Zen Mobile</Text>
-          <Text variant="small" color={colors.gray[500]}>
-            Distraction-free productivity launcher
-          </Text>
-          <Spacer size="sm" />
-          <Text variant="tiny" color={colors.gray[600]}>
-            Version 1.0.0 (Phase 3)
-          </Text>
-        </Card>
+          {/* About Section */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>About</Text>
 
-        <Spacer size="xxl" />
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Zen Mobile</Text>
+              <Text style={styles.cardSubtitle}>
+                Distraction-free productivity launcher
+              </Text>
+              <Text style={styles.versionText}>Version 1.0.0 (Phase 3)</Text>
+            </View>
+          </Animated.View>
+        </View>
       </ScrollView>
-    </Container>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  settingRow: {
+  container: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  headerTitle: {
+    fontSize: 24,
+    color: "#FFFFFF",
+    fontWeight: "400",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.5)",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 24,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    color: "#FFFFFF",
+    marginBottom: 16,
+    fontWeight: "400",
+  },
+  card: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  settingInfo: {
+  cardInfo: {
     flex: 1,
-    marginRight: spacing.md,
+    marginRight: 16,
+  },
+  cardTitle: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.5)",
   },
   statusBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.gray[900],
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(0, 255, 136, 0.1)",
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0, 255, 136, 0.3)",
+  },
+  statusText: {
+    fontSize: 12,
+    color: "#00FF88",
+    fontWeight: "500",
+  },
+  actionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  actionButtonText: {
+    fontSize: 12,
+    color: "#FFFFFF",
+    fontWeight: "500",
   },
   goalButtons: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm,
+    gap: 8,
+    marginTop: 16,
   },
   goalButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.gray[800],
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.gray[700],
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   goalButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: "#00FF88",
+    borderColor: "#00FF88",
+  },
+  goalButtonText: {
+    fontSize: 12,
+    color: "#FFFFFF",
+  },
+  goalButtonTextActive: {
+    color: "#000000",
+    fontWeight: "600",
+  },
+  versionText: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.3)",
+    marginTop: 8,
   },
 });
