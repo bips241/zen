@@ -59,9 +59,7 @@ export default function DNDSettingsScreen() {
             <Text style={styles.toggleIcon}>🌙</Text>
             <View>
               <Text style={styles.toggleTitle}>Do Not Disturb</Text>
-              <Text style={styles.toggleSubtitle}>
-                Block all notifications
-              </Text>
+              <Text style={styles.toggleSubtitle}>Block all notifications</Text>
             </View>
           </View>
           <Switch

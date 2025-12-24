@@ -156,11 +156,12 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
       <View style={styles.content}>
         {/* Phase Indicator */}
         <Animated.View
-          style={[styles.phaseIndicator, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}
+          style={[
+            styles.phaseIndicator,
+            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+          ]}
         >
-          <Text style={styles.phaseIcon}>
-            {phase === "work" ? "🧠" : "☕"}
-          </Text>
+          <Text style={styles.phaseIcon}>{phase === "work" ? "🧠" : "☕"}</Text>
           <View style={styles.phaseText}>
             <Text style={styles.phaseTitle}>
               {phase === "work"
@@ -186,7 +187,12 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
         >
           {/* Progress Circle */}
           <View style={styles.progressCircle}>
-            <Animated.View style={[styles.progressRing, { transform: [{ rotate: progressRotation }] }]} />
+            <Animated.View
+              style={[
+                styles.progressRing,
+                { transform: [{ rotate: progressRotation }] },
+              ]}
+            />
             <View style={styles.timerInner}>
               <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
             </View>
@@ -194,7 +200,9 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
         </Animated.View>
 
         {/* Pomodoro Dots */}
-        <Animated.View style={[styles.pomodoroDotsContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.pomodoroDotsContainer, { opacity: fadeAnim }]}
+        >
           {[0, 1, 2, 3].map((index) => (
             <View
               key={index}

@@ -217,7 +217,8 @@ export default function DeepWorkScreen() {
                 onPress={() => setPreset(preset.value)}
                 style={[
                   styles.presetButton,
-                  initialTime === preset.value * 60 && styles.presetButtonActive,
+                  initialTime === preset.value * 60 &&
+                    styles.presetButtonActive,
                 ]}
                 activeOpacity={0.7}
               >
@@ -300,7 +301,9 @@ export default function DeepWorkScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{Math.floor(totalMinutes / 60)}h</Text>
+            <Text style={styles.statValue}>
+              {Math.floor(totalMinutes / 60)}h
+            </Text>
             <Text style={styles.statLabel}>Deep Work</Text>
           </View>
         </Animated.View>

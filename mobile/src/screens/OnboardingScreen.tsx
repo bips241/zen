@@ -188,10 +188,7 @@ export default function OnboardingScreen() {
               style={styles.dotButton}
             >
               <View
-                style={[
-                  styles.dot,
-                  index === currentSlide && styles.activeDot,
-                ]}
+                style={[styles.dot, index === currentSlide && styles.activeDot]}
               />
             </TouchableOpacity>
           ))}

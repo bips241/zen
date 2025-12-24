@@ -19,9 +19,9 @@ interface Session {
 
 export default function FocusHistoryScreen() {
   const navigation = useNavigation();
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "week" | "month">(
-    "week"
-  );
+  const [selectedFilter, setSelectedFilter] = useState<
+    "all" | "week" | "month"
+  >("week");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 

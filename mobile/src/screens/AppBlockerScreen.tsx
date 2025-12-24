@@ -106,9 +106,8 @@ export default function AppBlockerScreen() {
   const [blockMode, setBlockMode] = useState<"focus" | "scheduled" | "manual">(
     "focus"
   );
-  const [selectedCategory, setSelectedCategory] = useState<
-    (typeof categories)[number]
-  >("all");
+  const [selectedCategory, setSelectedCategory] =
+    useState<(typeof categories)[number]>("all");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -245,10 +244,7 @@ export default function AppBlockerScreen() {
           >
             <View style={styles.appLeft}>
               <View
-                style={[
-                  styles.appIcon,
-                  app.isBlocked && styles.appIconBlocked,
-                ]}
+                style={[styles.appIcon, app.isBlocked && styles.appIconBlocked]}
               >
                 <Text style={styles.appIconText}>
                   {app.isBlocked ? "🛡️" : "✓"}

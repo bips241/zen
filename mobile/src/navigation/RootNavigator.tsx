@@ -124,7 +124,10 @@ export default function RootNavigator() {
       <Stack.Screen name="Tratak" component={TratakScreen} />
       <Stack.Screen name="Pomodoro" component={PomodoroScreen} />
       <Stack.Screen name="FocusTimer" component={FocusTimerScreen} />
-      <Stack.Screen name="EisenhowerMatrix" component={EisenhowerMatrixScreen} />
+      <Stack.Screen
+        name="EisenhowerMatrix"
+        component={EisenhowerMatrixScreen}
+      />
       <Stack.Screen name="AppBlocker" component={AppBlockerScreen} />
       <Stack.Screen name="DNDSettings" component={DNDSettingsScreen} />
       <Stack.Screen name="BackupRestore" component={BackupRestoreScreen} />

@@ -156,10 +156,7 @@ export default function BackupRestoreScreen() {
             <View style={styles.toggleContainer}>
               <TouchableOpacity
                 onPress={() => setAutoBackup(!autoBackup)}
-                style={[
-                  styles.toggle,
-                  autoBackup && styles.toggleActive,
-                ]}
+                style={[styles.toggle, autoBackup && styles.toggleActive]}
               >
                 <View
                   style={[

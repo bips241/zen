@@ -106,7 +106,13 @@ export default function AppDrawerScreen() {
     setViewMode(viewMode === "grid" ? "list" : "grid");
   };
 
-  const renderApp = ({ item, index }: { item: InstalledApp; index: number }) => {
+  const renderApp = ({
+    item,
+    index,
+  }: {
+    item: InstalledApp;
+    index: number;
+  }) => {
     if (viewMode === "grid") {
       return (
         <Animated.View
@@ -145,10 +151,14 @@ export default function AppDrawerScreen() {
           styles.appItemList,
           {
             opacity: fadeAnim,
-            transform: [{ translateX: fadeAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [-30, 0],
-            }) }],
+            transform: [
+              {
+                translateX: fadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-30, 0],
+                }),
+              },
+            ],
           },
         ]}
       >
@@ -232,10 +242,14 @@ export default function AppDrawerScreen() {
               styles.emptyContainer,
               {
                 opacity: fadeAnim,
-                transform: [{ translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }) }],
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
               },
             ]}
           >

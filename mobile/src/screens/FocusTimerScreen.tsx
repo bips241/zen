@@ -127,10 +127,14 @@ export default function FocusTimerScreen() {
             styles.modeSelector,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: fadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [-20, 0],
-              })}],
+              transform: [
+                {
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0],
+                  }),
+                },
+              ],
             },
           ]}
         >
@@ -234,10 +238,7 @@ export default function FocusTimerScreen() {
             },
           ]}
         >
-          <TouchableOpacity
-            onPress={handleReset}
-            style={styles.controlButton}
-          >
+          <TouchableOpacity onPress={handleReset} style={styles.controlButton}>
             <Text style={styles.controlIcon}>⟲</Text>
           </TouchableOpacity>
 

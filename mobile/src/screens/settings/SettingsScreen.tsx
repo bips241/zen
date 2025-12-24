@@ -158,7 +158,10 @@ export default function SettingsScreen() {
         <Text style={styles.headerSubtitle}>Configure app and permissions</Text>
       </Animated.View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           {/* Permissions Section */}
           <Animated.View
@@ -177,7 +180,9 @@ export default function SettingsScreen() {
               <View style={styles.cardHeader}>
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardTitle}>Default Launcher</Text>
-                  <Text style={styles.cardSubtitle}>Set Zen as home screen</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Set Zen as home screen
+                  </Text>
                 </View>
                 {isDefaultLauncher ? (
                   <View style={styles.statusBadge}>

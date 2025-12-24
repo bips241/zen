@@ -71,7 +71,7 @@ export default function ForestFocusScreen() {
     if (isRunning && timeLeft > 0) {
       const progress = ((initialTime - timeLeft) / initialTime) * 100;
       setCurrentTreeGrowth(progress);
-      
+
       // Animate tree growth
       Animated.timing(growthAnim, {
         toValue: progress / 100,
@@ -97,7 +97,11 @@ export default function ForestFocusScreen() {
 
     // Add completed tree to forest
     const treeType: Tree["type"] =
-      initialTime >= 90 * 60 ? "large" : initialTime >= 45 * 60 ? "medium" : "small";
+      initialTime >= 90 * 60
+        ? "large"
+        : initialTime >= 45 * 60
+        ? "medium"
+        : "small";
 
     const newTree: Tree = {
       id: Date.now().toString(),
@@ -275,10 +279,7 @@ export default function ForestFocusScreen() {
       {/* Controls */}
       <Animated.View style={[styles.controls, { opacity: fadeAnim }]}>
         <View style={styles.controlButtons}>
-          <TouchableOpacity
-            onPress={handleReset}
-            style={styles.controlButton}
-          >
+          <TouchableOpacity onPress={handleReset} style={styles.controlButton}>
             <Text style={styles.controlIcon}>⟲</Text>
           </TouchableOpacity>
 

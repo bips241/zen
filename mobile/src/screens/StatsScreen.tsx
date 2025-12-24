@@ -215,12 +215,22 @@ export default function StatsScreen({ navigation }: StatsScreenProps) {
                 <Text style={styles.breakdownValue}>92%</Text>
               </View>
               <View style={styles.breakdownItem}>
-                <View style={[styles.breakdownDot, { backgroundColor: "rgba(255, 255, 255, 0.5)" }]} />
+                <View
+                  style={[
+                    styles.breakdownDot,
+                    { backgroundColor: "rgba(255, 255, 255, 0.5)" },
+                  ]}
+                />
                 <Text style={styles.breakdownLabel}>Task Completion</Text>
                 <Text style={styles.breakdownValue}>78%</Text>
               </View>
               <View style={styles.breakdownItem}>
-                <View style={[styles.breakdownDot, { backgroundColor: "rgba(255, 255, 255, 0.3)" }]} />
+                <View
+                  style={[
+                    styles.breakdownDot,
+                    { backgroundColor: "rgba(255, 255, 255, 0.3)" },
+                  ]}
+                />
                 <Text style={styles.breakdownLabel}>Consistency</Text>
                 <Text style={styles.breakdownValue}>86%</Text>
               </View>
