@@ -5,15 +5,24 @@
     "name": "FocusShell",
     "slug": "focusshell",
     "version": "0.1.0",
-    "platforms": ["android"],
+    "platforms": [
+      "android"
+    ],
     "sdkVersion": "48.0.0",
     "orientation": "portrait",
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.anonymous.focusshell"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "829597e0-b63d-494b-a63e-9ee2a021db6b"
+      }
     }
   }
 }

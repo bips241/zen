@@ -1,7 +1,8 @@
 /**
- * Settings Screen
+ * Settings Screen - Unified Design
  *
  * App configuration and permissions management
+ * Consistent with HomeShell design system
  */
 
 import React, { useEffect, useState, useRef } from "react";
@@ -13,18 +14,38 @@ import {
   Switch,
   Alert,
   Animated,
-  Text,
+  Dimensions,
 } from "react-native";
+import { Text } from "../../components/atoms";
 import { launcher, blocker, notifications } from "../../services/nativeBridge";
 import { useStore } from "../../store";
+import EnhancedSettingsScreen from "../EnhancedSettingsScreen";
 
-export default function SettingsScreen() {
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+interface SettingItem {
+  icon: string;
+  label: string;
+  type: "toggle" | "navigation" | "button";
+  value?: boolean;
+  onChange?: (value: boolean) => void;
+  screen?: string;
+  onPress?: () => void;
+}
+
+interface SettingsSection {
+  title: string;
+  items: SettingItem[];
+}
+
+export default function SettingsScreen({ navigation }: any) {
   const [isDefaultLauncher, setIsDefaultLauncher] = useState(false);
   const [hasUsagePermission, setHasUsagePermission] = useState(false);
   const [hasNotificationPermission, setHasNotificationPermission] =
     useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [systemUIHidden, setSystemUIHidden] = useState(true);
+  const [viewMode, setViewMode] = useState<"standard" | "enhanced">("standard");
 
   const preferences = useStore((state) => state.preferences);
   const updatePreferences = useStore((state) => state.updatePreferences);
@@ -46,7 +67,13 @@ export default function SettingsScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+
+    // Cleanup animations on unmount
+    return () => {
+      fadeAnim.stopAnimation();
+      slideAnim.stopAnimation();
+    };
+  }, [fadeAnim, slideAnim]);
 
   const checkPermissions = async () => {
     try {
@@ -143,7 +170,11 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <>
+      {viewMode === "enhanced" ? (
+        <EnhancedSettingsScreen navigation={navigation} />
+      ) : (
+        <View style={styles.container}>
       {/* Header */}
       <Animated.View
         style={[
@@ -293,6 +324,22 @@ export default function SettingsScreen() {
                 />
               </View>
             </View>
+
+            {/* Friction Moments */}
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => navigation.navigate("FrictionSettings")}
+            >
+              <View style={styles.cardHeader}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardTitle}>Friction Moments</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Breathing delay before opening apps
+                  </Text>
+                </View>
+                <Text style={styles.arrowIcon}>→</Text>
+              </View>
+            </TouchableOpacity>
           </Animated.View>
 
           {/* Daily Goal Settings */}
@@ -313,7 +360,7 @@ export default function SettingsScreen() {
                 Current: {preferences.dailyGoalMinutes} minutes
               </Text>
 
-              <View style={styles.goalButtons}>
+            <View style={styles.goalButtonsContainer}>
                 {[30, 60, 90, 120, 180, 240].map((minutes) => (
                   <TouchableOpacity
                     key={minutes}
@@ -359,9 +406,36 @@ export default function SettingsScreen() {
               <Text style={styles.versionText}>Version 1.0.0 (Phase 3)</Text>
             </View>
           </Animated.View>
+
+          {/* View Mode Toggle */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.viewModeButton}
+              onPress={() =>
+                setViewMode(viewMode === "standard" ? "enhanced" : "standard")
+              }
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewModeButtonText}>
+                {viewMode === "standard"
+                  ? "✨ View Enhanced Settings"
+                  : "📋 View Standard Settings"}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </ScrollView>
-    </View>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -370,65 +444,82 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000000",
   },
+
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
+
   headerTitle: {
-    fontSize: 24,
+    fontFamily: "ZenDots-Regular",
+    fontSize: 32,
+    fontWeight: "300",
     color: "#FFFFFF",
-    fontWeight: "400",
     marginBottom: 4,
   },
+
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: "rgba(255, 255, 255, 0.5)",
+    marginBottom: 16,
   },
+
   scrollView: {
     flex: 1,
   },
+
   content: {
-    padding: 24,
+    paddingHorizontal: 10,
+    paddingBottom: 40,
   },
+
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
+
   sectionTitle: {
-    fontSize: 18,
-    color: "#FFFFFF",
-    marginBottom: 16,
-    fontWeight: "400",
+    fontSize: 11,
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.6)",
+    letterSpacing: 1.5,
+    marginBottom: 12,
+    marginLeft: 10,
+    textTransform: "uppercase",
   },
+
   card: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 8,
   },
+
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+
   cardInfo: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 12,
   },
+
   cardTitle: {
     fontSize: 16,
+    fontWeight: "500",
     color: "#FFFFFF",
     marginBottom: 4,
-    fontWeight: "500",
   },
+
   cardSubtitle: {
     fontSize: 12,
     color: "rgba(255, 255, 255, 0.5)",
   },
+
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -437,53 +528,85 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(0, 255, 136, 0.3)",
   },
+
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "600",
     color: "#00FF88",
-    fontWeight: "500",
   },
+
   actionButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
+
   actionButtonText: {
     fontSize: 12,
-    color: "#FFFFFF",
     fontWeight: "500",
+    color: "#FFFFFF",
   },
-  goalButtons: {
+
+  goalButtonsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 16,
   },
+
   goalButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
   },
+
   goalButtonActive: {
-    backgroundColor: "#00FF88",
-    borderColor: "#00FF88",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
   },
+
   goalButtonText: {
     fontSize: 12,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
+
   goalButtonTextActive: {
     color: "#000000",
     fontWeight: "600",
   },
+
+  arrowIcon: {
+    fontSize: 24,
+    color: "#888888",
+  },
+
   versionText: {
-    fontSize: 10,
+    fontSize: 11,
     color: "rgba(255, 255, 255, 0.3)",
     marginTop: 8,
+  },
+
+  viewModeButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  viewModeButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
 });

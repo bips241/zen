@@ -297,9 +297,10 @@ export const usage = {
   async getTodayUsage(): Promise<AppUsageStats[]> {
     if (Platform.OS !== "android") return [];
     if (!isNativeModuleAvailable("UsageStats")) return [];
+    if (!usageStats) return [];
 
     try {
-      return await usageStats.getTodayUsage();
+      return await usageStats.getAppUsageToday();
     } catch (error) {
       console.error("[usage] Error getting today usage:", error);
       return [];
@@ -316,7 +317,7 @@ export const usage = {
     if (Platform.OS !== "android") return [];
 
     try {
-      return await usageStats.getUsageInRange(
+      return await usageStats.getAppUsageForRange(
         startTime.getTime(),
         endTime.getTime()
       );
@@ -347,7 +348,7 @@ export const usage = {
     if (Platform.OS !== "android") return 0;
 
     try {
-      const result = await usageStats.getTotalScreenTime();
+      const result = await usageStats.getScreenTimeToday();
       return result.totalTimeMinutes;
     } catch (error) {
       console.error("[usage] Error getting total screen time:", error);
@@ -1198,6 +1199,16 @@ export const accessibility = {
     }
   },
 };
+
+// ============================================================================
+// Overlay & Friction Moments Module
+// ============================================================================
+
+export { overlay } from "./overlayBridge";
+
+// All modules are already exported with 'export const' above
+// Additional re-exports for clarity (these are already exported)
+// export { launcher, blocker, usage, notifications, dnd, focusSession, notificationListener, power, wallpaper, backup, gestures, accessibility };
 
 // Legacy export for backward compatibility
 const NativeBridge = {

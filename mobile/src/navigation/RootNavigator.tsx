@@ -24,6 +24,9 @@ import FocusHistoryScreen from "../screens/FocusHistoryScreen";
 import TasksScreen from "../screens/TasksScreen";
 import ForestFocusScreen from "../screens/ForestFocusScreen";
 import DeepWorkScreen from "../screens/DeepWorkScreen";
+import FrictionSettings from "../screens/FrictionSettings";
+import AppSelectionScreen from "../screens/AppSelectionScreen";
+import FrictionOverlay from "../screens/FrictionOverlay";
 import { colors } from "../theme";
 import { Text } from "../components/atoms";
 
@@ -135,6 +138,9 @@ export default function RootNavigator() {
       <Stack.Screen name="Tasks" component={TasksScreen} />
       <Stack.Screen name="ForestFocus" component={ForestFocusScreen} />
       <Stack.Screen name="DeepWork" component={DeepWorkScreen} />
+      <Stack.Screen name="FrictionSettings" component={FrictionSettings} />
+      <Stack.Screen name="AppSelection" component={AppSelectionScreen} />
+      <Stack.Screen name="FrictionOverlay" component={FrictionOverlay} />
     </Stack.Navigator>
   );
 }

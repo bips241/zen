@@ -13,13 +13,33 @@ import {
   Animated,
   Easing,
 } from "react-native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Text } from "../components/atoms";
 import { colors } from "../theme";
 import { launcher } from "../services/nativeBridge";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-export default function HomeShell({ navigation }: any) {
+// Essential app package names
+const APP_PACKAGES = {
+  CHROME: "com.android.chrome",
+  GMAIL: "com.google.android.gm",
+  SEARCH: "com.google.android.googlequicksearchbox",
+  SETTINGS: "com.android.settings",
+  DIALER: "com.google.android.dialer",
+  MESSAGES: "com.google.android.apps.messaging",
+} as const;
+
+// Mock progress value - replace with real data from store
+const CURRENT_PROGRESS = 30;
+
+type HomeShellNavigationProp = NativeStackNavigationProp<any>;
+
+interface HomeShellProps {
+  navigation: HomeShellNavigationProp;
+}
+
+export default function HomeShell({ navigation }: HomeShellProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Animation values
@@ -63,7 +83,7 @@ export default function HomeShell({ navigation }: any) {
 
     // Progress bar animation
     Animated.timing(progressAnim, {
-      toValue: 30,
+      toValue: CURRENT_PROGRESS,
       duration: 1000,
       delay: 500,
       easing: Easing.out(Easing.cubic),
@@ -88,8 +108,8 @@ export default function HomeShell({ navigation }: any) {
   const handleTratak = () => {
     try {
       navigation.navigate("Tratak");
-    } catch (e) {
-      console.log("Navigation failed", e);
+    } catch (error) {
+      console.error("Navigation to Tratak failed:", error);
     }
   };
 
@@ -153,7 +173,7 @@ export default function HomeShell({ navigation }: any) {
               style={[styles.progressFill, { width: progressWidth }]}
             />
           </View>
-          <Text style={styles.progressLabel}>30%</Text>
+          <Text style={styles.progressLabel}>{CURRENT_PROGRESS}%</Text>
           <Text style={styles.timeLabel}>120 min</Text>
         </View>
       </Animated.View>
@@ -185,7 +205,7 @@ export default function HomeShell({ navigation }: any) {
         <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => handleLaunchApp("com.android.chrome")}
+            onPress={() => handleLaunchApp(APP_PACKAGES.CHROME)}
             activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>🌐</Text>
@@ -193,7 +213,7 @@ export default function HomeShell({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => handleLaunchApp("com.google.android.gm")}
+            onPress={() => handleLaunchApp(APP_PACKAGES.GMAIL)}
             activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>📧</Text>
@@ -201,9 +221,7 @@ export default function HomeShell({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() =>
-              handleLaunchApp("com.google.android.googlequicksearchbox")
-            }
+            onPress={() => handleLaunchApp(APP_PACKAGES.SEARCH)}
             activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>🔍</Text>
@@ -211,7 +229,7 @@ export default function HomeShell({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => handleLaunchApp("com.android.settings")}
+            onPress={() => handleLaunchApp(APP_PACKAGES.SETTINGS)}
             activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>⚙️</Text>
@@ -261,7 +279,7 @@ export default function HomeShell({ navigation }: any) {
         <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => handleLaunchApp("com.google.android.dialer")}
+            onPress={() => handleLaunchApp(APP_PACKAGES.DIALER)}
             activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>📞</Text>
@@ -269,7 +287,7 @@ export default function HomeShell({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => handleLaunchApp("com.google.android.apps.messaging")}
+            onPress={() => handleLaunchApp(APP_PACKAGES.MESSAGES)}
             activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>💬</Text>
@@ -277,7 +295,7 @@ export default function HomeShell({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => {}}
+            onPress={() => navigation.navigate("DNDSettings")}
             activeOpacity={0.7}
           >
             <Text style={styles.iconEmoji}>🔕</Text>

@@ -25,6 +25,7 @@ interface StatsScreenProps {
 export default function StatsScreen({ navigation }: StatsScreenProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(30)).current;
+  const progressWidthAnim = useRef(new Animated.Value(0)).current;
 
   const weekData = [
     { day: "Mon", value: 85, hours: 6.8 },
@@ -46,7 +47,7 @@ export default function StatsScreen({ navigation }: StatsScreenProps) {
   const maxValue = Math.max(...weekData.map((d) => d.value));
 
   useEffect(() => {
-    Animated.parallel([
+    const animations = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 400,
@@ -58,7 +59,23 @@ export default function StatsScreen({ navigation }: StatsScreenProps) {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-    ]).start();
+      Animated.timing(progressWidthAnim, {
+        toValue: 1,
+        duration: 800,
+        delay: 400,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false, // Width animation requires JS driver
+      }),
+    ]);
+    
+    animations.start();
+
+    return () => {
+      animations.stop();
+      fadeAnim.setValue(0);
+      slideUpAnim.setValue(30);
+      progressWidthAnim.setValue(0);
+    };
   }, []);
 
   return (
@@ -198,7 +215,7 @@ export default function StatsScreen({ navigation }: StatsScreenProps) {
                 style={[
                   styles.scoreProgressFill,
                   {
-                    width: fadeAnim.interpolate({
+                    width: progressWidthAnim.interpolate({
                       inputRange: [0, 1],
                       outputRange: ["0%", "82%"],
                     }),

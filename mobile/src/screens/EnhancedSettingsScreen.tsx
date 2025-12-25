@@ -24,12 +24,13 @@ interface SettingsSection {
   items: SettingItem[];
 }
 
-export default function SettingsScreen() {
-  const navigation = useNavigation();
+export default function EnhancedSettingsScreen({ navigation }: any) {
+  const nav = useNavigation();
   const [notifications, setNotifications] = useState(true);
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [sound, setSound] = useState(true);
   const [vibration, setVibration] = useState(true);
+  const [showViewToggle, setShowViewToggle] = useState(true);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -47,7 +48,12 @@ export default function SettingsScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+
+    return () => {
+      fadeAnim.stopAnimation();
+      slideAnim.stopAnimation();
+    };
+  }, [fadeAnim, slideAnim]);
 
   const settingsSections: SettingsSection[] = [
     {
@@ -134,7 +140,7 @@ export default function SettingsScreen() {
 
   const handleNavigation = (screen?: string) => {
     if (screen) {
-      navigation.navigate(screen as never);
+      nav.navigate(screen as never);
     }
   };
 
@@ -235,6 +241,21 @@ export default function SettingsScreen() {
         <Animated.View style={[styles.appInfo, { opacity: fadeAnim }]}>
           <Text style={styles.appInfoText}>Zen Mobile Launcher</Text>
           <Text style={styles.appInfoText}>Version 1.0.0</Text>
+        </Animated.View>
+
+        {/* View Mode Toggle Button */}
+        <Animated.View style={[{ opacity: fadeAnim }]}>
+          <TouchableOpacity
+            style={styles.viewModeButton}
+            onPress={() => {
+              // Navigate back to standard settings by popping the screen
+              // This works through the parent state management
+              navigation?.goBack?.();
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.viewModeButtonText}>📋 View Standard Settings</Text>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
     </View>
@@ -361,5 +382,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.4)",
     marginBottom: 8,
+  },
+
+  viewModeButton: {
+    marginTop: 24,
+    marginBottom: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  viewModeButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
 });

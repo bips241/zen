@@ -62,7 +62,11 @@ export default function TasksScreen() {
       duration: 400,
       useNativeDriver: true,
     }).start();
-  }, []);
+
+    return () => {
+      fadeAnim.stopAnimation();
+    };
+  }, [fadeAnim]);
 
   const toggleTask = (taskId: string) => {
     setTasks(
@@ -265,11 +269,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -283,9 +285,10 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   headerTitle: {
-    fontSize: 20,
+    fontFamily: "ZenDots-Regular",
+    fontSize: 28,
+    fontWeight: "300",
     color: "#FFFFFF",
-    fontWeight: "400",
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -299,17 +302,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     paddingBottom: 100,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "500",
     color: "rgba(255, 255, 255, 0.6)",
-    letterSpacing: 2,
-    marginBottom: 16,
+    letterSpacing: 1.5,
+    marginBottom: 12,
+    textTransform: "uppercase",
   },
   taskItem: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",
@@ -398,11 +404,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   fabIcon: {
     fontSize: 32,

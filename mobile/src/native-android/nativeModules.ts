@@ -101,13 +101,18 @@ export interface ScreenTimeStats {
 }
 
 interface UsageStatsModule {
-  getTodayUsage(): Promise<AppUsageStats[]>;
-  getUsageInRange(
+  getAppUsageToday(): Promise<AppUsageStats[]>;
+  getAppUsageForRange(
     startTimeMs: number,
     endTimeMs: number
   ): Promise<AppUsageStats[]>;
   getMostUsedApps(limit: number): Promise<AppUsageStats[]>;
-  getTotalScreenTime(): Promise<ScreenTimeStats>;
+  getScreenTimeToday(): Promise<ScreenTimeStats>;
+  getAppUsageForPackage(packageName: string): Promise<AppUsageStats>;
+  getWeeklyScreenTime(): Promise<any[]>;
+  getCategorizedUsage(): Promise<any[]>;
+  getHourlyBreakdown(): Promise<any[]>;
+  getScreenUnlocksToday(): Promise<{ unlockCount: number }>;
 }
 
 // ============================================================================
@@ -158,6 +163,61 @@ interface DNDModule {
   enableDND(): Promise<boolean>;
   disableDND(): Promise<boolean>;
   toggleDND(): Promise<DNDResult>;
+}
+
+// ============================================================================
+// Overlay & Friction Moments Module
+// ============================================================================
+
+export interface OverlayPermissionResult {
+  hasPermission: boolean;
+}
+
+export interface OverlayResult {
+  success: boolean;
+  enabled?: boolean;
+  message?: string;
+}
+
+export interface FrictionConfigResult {
+  success: boolean;
+  delaySeconds: number;
+  blockedAppsCount: number;
+}
+
+export interface UsageLimitResult {
+  success: boolean;
+  packageName: string;
+  limitMinutes: number;
+}
+
+export interface UsageQueryResult {
+  usageMinutes: number;
+  packageName: string;
+}
+
+interface ZenOverlayModule {
+  hasOverlayPermission(): Promise<OverlayPermissionResult>;
+  requestOverlayPermission(): Promise<OverlayResult>;
+  enableFrictionMoments(): Promise<OverlayResult>;
+  disableFrictionMoments(): Promise<OverlayResult>;
+  isFrictionEnabled(): Promise<{ enabled: boolean }>;
+  configureFriction(
+    delaySeconds: number,
+    blockedApps: string[]
+  ): Promise<FrictionConfigResult>;
+  setUsageLimit(
+    packageName: string,
+    limitMinutes: number
+  ): Promise<UsageLimitResult>;
+  getCurrentUsage(packageName: string): Promise<UsageQueryResult>;
+  resetTodayUsage(): Promise<OverlayResult>;
+  getPendingFrictionTrigger(): Promise<{
+    hasTrigger: boolean;
+    packageName?: string;
+    delaySeconds?: number;
+    triggerTime?: number;
+  }>;
 }
 
 // ============================================================================
@@ -331,6 +391,9 @@ export const backupModule = Backup as BackupModule;
 export const gestureModule = Gesture as GestureModule;
 export const accessibilityModule = Accessibility as AccessibilityModule;
 
+const ZenOverlay = NativeModules.ZenOverlay || null;
+export const overlayModule = ZenOverlay as ZenOverlayModule | null;
+
 // Export types
 export type {
   SuppressedNotification,
@@ -358,6 +421,7 @@ export const areAllModulesAvailable = (): boolean => {
     isNativeModuleAvailable("WallpaperModule") &&
     isNativeModuleAvailable("BackupModule") &&
     isNativeModuleAvailable("GestureModule") &&
-    isNativeModuleAvailable("AccessibilityModule")
+    isNativeModuleAvailable("AccessibilityModule") &&
+    isNativeModuleAvailable("ZenOverlay")
   );
 };

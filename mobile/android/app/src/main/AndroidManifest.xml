@@ -119,6 +119,13 @@
       </intent-filter>
     </service>
     
+    <!-- Overlay Service for Friction Moments -->
+    <service
+      android:name=".OverlayService"
+      android:enabled="true"
+      android:exported="false"
+      android:foregroundServiceType="dataSync"/>
+    
     <!-- Quick Settings Tile for Focus Mode -->
     <service
       android:name=".services.FocusTileService"
