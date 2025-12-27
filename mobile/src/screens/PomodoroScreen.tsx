@@ -13,6 +13,7 @@ import {
   Easing,
 } from "react-native";
 import { Text } from "../components/atoms";
+import { useStore } from "../store";
 import { colors } from "../theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -85,12 +86,16 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
     }).start();
   }, [timeLeft, phase]);
 
-  const handlePhaseComplete = () => {
+  const handlePhaseComplete = async () => {
     setIsRunning(false);
 
     if (phase === "work") {
       const newCompleted = completedPomodoros + 1;
       setCompletedPomodoros(newCompleted);
+
+      // Update global productivity tracker (25 minutes per pomodoro)
+      const dayRefreshTime = useStore.getState().preferences.dayRefreshTime;
+      await useStore.getState().addFocusMinutes(25, dayRefreshTime);
 
       // After 4 pomodoros, take a long break
       if (newCompleted % 4 === 0) {

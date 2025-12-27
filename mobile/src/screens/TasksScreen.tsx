@@ -102,7 +102,7 @@ export default function TasksScreen() {
     const colors = {
       high: "#FF4444",
       medium: "#FFAA00",
-      low: "#00FF88",
+      low: "#FFFFFF",
     };
     return colors[priority];
   };
@@ -353,8 +353,8 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   checkboxChecked: {
-    backgroundColor: "#00FF88",
-    borderColor: "#00FF88",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
   },
   checkmark: {
     fontSize: 14,

@@ -24,6 +24,9 @@ public class MainActivity extends ReactActivity {
     setTheme(R.style.AppTheme);
     super.onCreate(null);
     
+    // Enable edge-to-edge mode - app draws behind system bars
+    setupEdgeToEdge();
+    
     // Initial hide
     hideSystemBars();
   }
@@ -52,10 +55,32 @@ public class MainActivity extends ReactActivity {
   }
 
   /**
+   * Setup edge-to-edge mode - allows app to draw behind system bars
+   * This ensures content isn't overlapped when system bars appear
+   */
+  private void setupEdgeToEdge() {
+    Window window = getWindow();
+    
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      // API 30+ (Android 11+)
+      window.setDecorFitsSystemWindows(false);
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      // API 21-29
+      View decorView = window.getDecorView();
+      decorView.setSystemUiVisibility(
+        decorView.getSystemUiVisibility() 
+        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+      );
+    }
+  }
+
+  /**
    * Maximum enforcement system bar hiding for launcher
    * - Hides status bar and navigation bar
-   * - Prevents swipe-to-reveal (BEHAVIOR_SHOW_BARS_BY_TOUCH)
-   * - Requires explicit button press to show bars
+   * - Shows bars transiently only on edge swipe
+   * - Bars auto-hide after brief delay
    */
   private void hideSystemBars() {
     Window window = getWindow();
@@ -71,11 +96,14 @@ public class MainActivity extends ReactActivity {
           WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()
         );
         
-        // CRITICAL: Disable swipe-to-show
-        // BEHAVIOR_SHOW_BARS_BY_TOUCH = bars only show on explicit touch/button
-        // This prevents swipe-up revealing navigation bar
+        // CRITICAL: Show bars transiently only on edge swipe
+        // BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE:
+        // - Bars appear OVER content (transient, semi-transparent)
+        // - Only triggered by swiping from screen edge
+        // - Auto-hide after a few seconds
+        // - Content doesn't resize/reflow when bars appear
         controller.setSystemBarsBehavior(
-          WindowInsetsController.BEHAVIOR_SHOW_BARS_BY_TOUCH
+          WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         );
       }
     } else {

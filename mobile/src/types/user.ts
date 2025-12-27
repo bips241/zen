@@ -26,6 +26,7 @@ export interface UserPreferences {
   blockListApps: string[];
   allowEmergencyApps: string[];
   frictionSeconds: number;
+  dayRefreshTime: string; // "HH:MM" format, e.g., "00:00" for midnight
 }
 
 export interface UserStats {

@@ -7,31 +7,36 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface Slide {
-  icon: string;
+  iconName: string;
+  iconFamily: "material" | "ionicons";
   title: string;
   description: string;
 }
 
 const slides: Slide[] = [
   {
-    icon: "🎯",
+    iconName: "target",
+    iconFamily: "material",
     title: "Focus on What Matters",
     description:
       "Eliminate distractions and boost your productivity with a minimalist launcher",
   },
   {
-    icon: "⏰",
+    iconName: "timer-outline",
+    iconFamily: "ionicons",
     title: "Track Your Time",
     description:
       "Monitor your productivity and build better habits with intelligent tracking",
   },
   {
-    icon: "📈",
+    iconName: "trending-up",
+    iconFamily: "material",
     title: "Achieve Your Goals",
     description:
       "Stay motivated with insights and statistics about your progress",
@@ -143,7 +148,19 @@ export default function OnboardingScreen() {
               },
             ]}
           >
-            <Text style={styles.icon}>{currentSlideData.icon}</Text>
+            {currentSlideData.iconFamily === "material" ? (
+              <MaterialCommunityIcons
+                name={currentSlideData.iconName as any}
+                size={64}
+                color="#FFFFFF"
+              />
+            ) : (
+              <Ionicons
+                name={currentSlideData.iconName as any}
+                size={64}
+                color="#FFFFFF"
+              />
+            )}
           </Animated.View>
 
           {/* Title */}

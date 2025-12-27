@@ -1,7 +1,8 @@
 /**
  * HomeShell Screen - Minimalist Launcher
  * Based on Figma design with frosted glass cards
- * Enhanced with animations and focus modes styling
+ * Enhanced with animations and consistent styling
+ * Dynamic layout adjustment based on system UI visibility
  */
 
 import React, { useEffect, useState, useRef } from "react";
@@ -13,10 +14,13 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Svg, { Circle } from "react-native-svg";
 import { Text } from "../components/atoms";
 import { colors } from "../theme";
 import { launcher } from "../services/nativeBridge";
+import { useStore } from "../store";
+import { useSystemInsets } from "../hooks/useSystemInsets";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -30,10 +34,11 @@ const APP_PACKAGES = {
   MESSAGES: "com.google.android.apps.messaging",
 } as const;
 
-// Mock progress value - replace with real data from store
-const CURRENT_PROGRESS = 30;
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-type HomeShellNavigationProp = NativeStackNavigationProp<any>;
+type HomeShellNavigationProp = {
+  navigate: (screen: string, params?: Record<string, unknown>) => void;
+};
 
 interface HomeShellProps {
   navigation: HomeShellNavigationProp;
@@ -42,11 +47,71 @@ interface HomeShellProps {
 export default function HomeShell({ navigation }: HomeShellProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Dynamic system insets monitoring
+  const { navBarHeight, isNavBarVisible, isKeyboardVisible } =
+    useSystemInsets();
+
+  // Safe navbar height with default
+  const safeNavBarHeight =
+    typeof navBarHeight === "number" && !isNaN(navBarHeight) ? navBarHeight : 0;
+
+  // Connect to store
+  const todayMinutes = useStore((state) => state.todayMinutes);
+  const dailyGoalMinutes = useStore(
+    (state) => state.preferences.dailyGoalMinutes
+  );
+  const currentStreak = useStore((state) => state.currentStreak);
+  const dayRefreshTime = useStore((state) => state.preferences.dayRefreshTime);
+  const isHydrated = useStore((state) => state.isHydrated);
+  const hydrateFromDatabase = useStore((state) => state.hydrateFromDatabase);
+  const checkAndResetDaily = useStore((state) => state.checkAndResetDaily);
+
+  // Log when todayMinutes changes
+  useEffect(() => {
+    console.log("[HomeShell] todayMinutes updated:", todayMinutes);
+  }, [todayMinutes]);
+
+  // Log system UI changes
+  useEffect(() => {
+    console.log(
+      "[HomeShell] System UI changed - NavBar:",
+      safeNavBarHeight,
+      "px, Visible:",
+      isNavBarVisible
+    );
+  }, [safeNavBarHeight, isNavBarVisible]);
+
+  // Hydrate from database on mount
+  useEffect(() => {
+    if (!isHydrated) {
+      hydrateFromDatabase(dayRefreshTime);
+    }
+  }, [isHydrated, dayRefreshTime]);
+
+  // Check for daily reset periodically
+  useEffect(() => {
+    checkAndResetDaily(dayRefreshTime);
+
+    // Check every minute if day has changed
+    const checkInterval = setInterval(() => {
+      checkAndResetDaily(dayRefreshTime);
+    }, 60000); // Check every minute
+
+    return () => clearInterval(checkInterval);
+  }, [dayRefreshTime]);
+
+  // Calculate progress percentage
+  const progressPercentage = Math.min(
+    (todayMinutes / dailyGoalMinutes) * 100,
+    100
+  );
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const circleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     launcher.hideSystemUI();
@@ -80,16 +145,27 @@ export default function HomeShell({ navigation }: HomeShellProps) {
         useNativeDriver: true,
       }),
     ]).start();
-
-    // Progress bar animation
-    Animated.timing(progressAnim, {
-      toValue: CURRENT_PROGRESS,
-      duration: 1000,
-      delay: 500,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
   }, []);
+
+  // Progress animations - updates when todayMinutes changes
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(progressAnim, {
+        toValue: progressPercentage,
+        duration: 1200,
+        delay: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(circleAnim, {
+        toValue: progressPercentage,
+        duration: 1500,
+        delay: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [progressPercentage]);
 
   const formatTime = (date: Date) => {
     const h = date.getHours().toString().padStart(2, "0");
@@ -118,6 +194,16 @@ export default function HomeShell({ navigation }: HomeShellProps) {
     outputRange: ["0%", "100%"],
   });
 
+  // Circular progress calculation
+  const radius = 50;
+  const strokeWidth = 6;
+  const circumference = 2 * Math.PI * radius;
+
+  const strokeDashoffset = circleAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: [circumference, 0],
+  });
+
   return (
     <View style={styles.container}>
       {/* Background */}
@@ -128,16 +214,16 @@ export default function HomeShell({ navigation }: HomeShellProps) {
         <TouchableOpacity
           style={styles.headerButton}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate("AppDrawer")}
+          onPress={() => navigation.navigate("AmbientMusic")}
         >
-          <Text style={styles.headerIcon}>☰</Text>
+          <Ionicons name="musical-notes" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerButton}
           activeOpacity={0.7}
           onPress={() => navigation.navigate("Settings")}
         >
-          <Text style={styles.headerIcon}>⚙️</Text>
+          <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -164,17 +250,76 @@ export default function HomeShell({ navigation }: HomeShellProps) {
           },
         ]}
       >
-        <Text style={styles.productivityTitle}>productivity tracker</Text>
-
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <Animated.View
-              style={[styles.progressFill, { width: progressWidth }]}
+        <View style={styles.productivityHeader}>
+          <Text style={styles.productivityTitle}>productivity tracker</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Stats")}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="stats-chart"
+              size={20}
+              color="rgba(255, 255, 255, 0.6)"
             />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.trackerContent}>
+          {/* Circular Progress Loader */}
+          <View style={styles.circularProgress}>
+            <Svg width={120} height={120} viewBox="0 0 120 120">
+              {/* Background circle */}
+              <Circle
+                cx="60"
+                cy="60"
+                r={radius}
+                stroke="rgba(255, 255, 255, 0.1)"
+                strokeWidth={strokeWidth}
+                fill="none"
+              />
+              {/* Progress circle */}
+              <AnimatedCircle
+                cx="60"
+                cy="60"
+                r={radius}
+                stroke="#FFFFFF"
+                strokeWidth={strokeWidth}
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                rotation="-90"
+                origin="60, 60"
+              />
+            </Svg>
+            <View style={styles.circularProgressContent}>
+              <Text style={styles.progressPercentage}>
+                {Math.round(progressPercentage)}%
+              </Text>
+              <Text style={styles.progressSubtext}>complete</Text>
+            </View>
           </View>
-          <Text style={styles.progressLabel}>{CURRENT_PROGRESS}%</Text>
-          <Text style={styles.timeLabel}>120 min</Text>
+
+          {/* Stats Info */}
+          <View style={styles.trackerStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{todayMinutes}</Text>
+              <Text style={styles.statLabel}>minutes</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{dailyGoalMinutes}</Text>
+              <Text style={styles.statLabel}>goal</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <View style={styles.streakRow}>
+                <MaterialCommunityIcons name="fire" size={18} color="#FFFFFF" />
+                <Text style={styles.statValue}>{currentStreak}</Text>
+              </View>
+              <Text style={styles.statLabel}>streak</Text>
+            </View>
+          </View>
         </View>
       </Animated.View>
 
@@ -191,118 +336,120 @@ export default function HomeShell({ navigation }: HomeShellProps) {
         <Text style={styles.sectionTitle}>FOCUS MODES</Text>
       </Animated.View>
 
-      {/* Main Actions Container */}
+      {/* Focus Modes Container */}
       <Animated.View
         style={[
-          styles.actionsContainer,
+          styles.focusModesContainer,
           {
             opacity: fadeAnim,
             transform: [{ translateY: slideUpAnim }],
           },
         ]}
       >
-        {/* Row 1: Essential Apps */}
-        <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
+        <View style={styles.focusModesGrid}>
+          {/* Tratak */}
           <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleLaunchApp(APP_PACKAGES.CHROME)}
+            style={styles.focusModeCard}
+            onPress={handleTratak}
+            activeOpacity={0.8}
+          >
+            <View style={styles.focusModeIconContainer}>
+              <MaterialCommunityIcons name="candle" size={32} color="#FFFFFF" />
+            </View>
+            <Text style={styles.focusModeLabel}>Tratak</Text>
+          </TouchableOpacity>
+
+          {/* Pomodoro */}
+          <TouchableOpacity
+            style={styles.focusModeCard}
+            onPress={() => navigation.navigate("Pomodoro")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.focusModeIconContainer}>
+              <Ionicons name="timer-outline" size={32} color="#FFFFFF" />
+            </View>
+            <Text style={styles.focusModeLabel}>Pomodoro</Text>
+          </TouchableOpacity>
+
+          {/* Eisenhower Matrix */}
+          <TouchableOpacity
+            style={styles.focusModeCard}
+            onPress={() => navigation.navigate("EisenhowerMatrix")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.focusModeIconContainer}>
+              <MaterialCommunityIcons name="grid" size={32} color="#FFFFFF" />
+            </View>
+            <Text style={styles.focusModeLabel}>Matrix</Text>
+          </TouchableOpacity>
+
+          {/* Forest Focus */}
+          <TouchableOpacity
+            style={styles.focusModeCard}
+            onPress={() => navigation.navigate("ForestFocus")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.focusModeIconContainer}>
+              <MaterialCommunityIcons name="tree" size={32} color="#FFFFFF" />
+            </View>
+            <Text style={styles.focusModeLabel}>Forest</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* Quick Actions - Dynamically positioned above tab bar */}
+      <Animated.View
+        style={[
+          styles.quickActionsContainer,
+          {
+            // Dynamic bottom positioning: tab bar (60px) + nav bar height + margin
+            bottom: 60 + safeNavBarHeight + 16,
+            opacity: fadeAnim,
+            transform: [{ translateY: slideUpAnim }],
+          },
+        ]}
+      >
+        <View style={styles.quickActionsRow}>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => navigation.navigate("AppDrawer")}
             activeOpacity={0.7}
           >
-            <Text style={styles.iconEmoji}>🌐</Text>
+            <Ionicons name="apps" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleLaunchApp(APP_PACKAGES.GMAIL)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.iconEmoji}>📧</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.quickActionButton}
             onPress={() => handleLaunchApp(APP_PACKAGES.SEARCH)}
             activeOpacity={0.7}
           >
-            <Text style={styles.iconEmoji}>🔍</Text>
+            <Ionicons name="search" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleLaunchApp(APP_PACKAGES.SETTINGS)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.iconEmoji}>⚙️</Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Row 2: Focus Methods */}
-        <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleTratak}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.iconEmoji}>🕯️</Text>
-            <Text style={styles.iconLabel}>Tratak</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("Pomodoro")}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.iconEmoji}>⏱️</Text>
-            <Text style={styles.iconLabel}>Pomodoro</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("EisenhowerMatrix")}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.iconEmoji}>📊</Text>
-            <Text style={styles.iconLabel}>Matrix</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("ForestFocus")}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.iconEmoji}>🌳</Text>
-            <Text style={styles.iconLabel}>Forest</Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Row 3: Core Actions */}
-        <Animated.View style={[styles.appRow, { opacity: fadeAnim }]}>
-          <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.quickActionButton}
             onPress={() => handleLaunchApp(APP_PACKAGES.DIALER)}
             activeOpacity={0.7}
           >
-            <Text style={styles.iconEmoji}>📞</Text>
+            <Ionicons name="call" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.quickActionButton}
             onPress={() => handleLaunchApp(APP_PACKAGES.MESSAGES)}
             activeOpacity={0.7}
           >
-            <Text style={styles.iconEmoji}>💬</Text>
+            <Ionicons name="chatbubble" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.quickActionButton}
             onPress={() => navigation.navigate("DNDSettings")}
             activeOpacity={0.7}
           >
-            <Text style={styles.iconEmoji}>🔕</Text>
+            <MaterialCommunityIcons name="bell-off" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-
-          <View style={styles.iconButton} />
-        </Animated.View>
+        </View>
       </Animated.View>
     </View>
   );
@@ -323,22 +470,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
   },
 
-  timeContainer: {
-    position: "absolute",
-    top: SCREEN_HEIGHT * 0.1,
-    alignSelf: "center",
-  },
-
-  timeText: {
-    fontFamily: "ZenDots-Regular",
-    fontSize: 43,
-    lineHeight: 52,
-    color: "#FFFFFF",
-    textShadowColor: "rgba(255, 253, 253, 0.3)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 39,
-  },
-
+  // Header
   headerButtons: {
     position: "absolute",
     top: SCREEN_HEIGHT * 0.04,
@@ -359,11 +491,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
   },
 
   headerIcon: {
@@ -371,45 +498,43 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  notificationBell: {
+  // Time Display
+  timeContainer: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.06,
-    right: 20,
-    width: 35,
-    height: 35,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "rgba(255, 250, 250, 0.1)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 5,
+    top: SCREEN_HEIGHT * 0.1,
+    alignSelf: "center",
   },
 
-  bellIcon: {
-    fontSize: 18,
+  timeText: {
+    fontFamily: "ZenDots-Regular",
+    fontSize: 43,
+    lineHeight: 52,
+    color: "#FFFFFF",
+    textShadowColor: "rgba(255, 255, 255, 0.3)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 39,
   },
 
+  // Productivity Card
   productivityCard: {
     position: "absolute",
     left: 10,
     top: SCREEN_HEIGHT * 0.25,
     width: SCREEN_WIDTH - 20,
-    height: 113,
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 29,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 13,
-    elevation: 10,
     padding: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+
+  productivityHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
   },
 
   productivityTitle: {
@@ -417,63 +542,88 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 16,
     color: "#FFFFFF",
-    textAlign: "center",
-    marginBottom: 15,
   },
 
-  progressContainer: {
+  trackerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
-    borderColor: "#fffdfdff",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 20,
+    gap: 20,
   },
 
-  progressBar: {
+  circularProgress: {
+    position: "relative",
+    width: 120,
+    height: 120,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  circularProgressContent: {
+    position: "absolute",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  progressPercentage: {
+    fontFamily: "ZenDots-Regular",
+    fontSize: 24,
+    lineHeight: 28,
+    color: "#FFFFFF",
+    fontWeight: "300",
+  },
+
+  progressSubtext: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.5)",
+    marginTop: 2,
+  },
+
+  trackerStats: {
     flex: 1,
-    height: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 13,
-    shadowColor: "rgba(255, 250, 250, 0.15)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 5,
-    elevation: 5,
-    overflow: "hidden",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
   },
 
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 13,
+  statItem: {
+    alignItems: "center",
+    gap: 4,
   },
 
-  progressLabel: {
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  statValue: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 12,
-    lineHeight: 14,
+    fontSize: 18,
+    lineHeight: 22,
     color: "#FFFFFF",
-    marginLeft: 10,
+    fontWeight: "300",
   },
 
-  timeLabel: {
-    fontFamily: "ZenDots-Regular",
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#FFFFFF",
-    marginLeft: 10,
+  statLabel: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+
+  // Section Title
   sectionTitleContainer: {
     position: "absolute",
-    left: 20,
-    top: SCREEN_HEIGHT * 0.61,
-    width: SCREEN_WIDTH - 40,
+    left: 24,
+    top: SCREEN_HEIGHT * 0.58,
+    width: SCREEN_WIDTH - 48,
   },
 
   sectionTitle: {
@@ -481,63 +631,87 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.6)",
     letterSpacing: 1.5,
     fontWeight: "400",
-    marginBottom: 8,
+    marginBottom: 12,
   },
 
-  actionsContainer: {
+  // Focus Modes Container
+  focusModesContainer: {
     position: "absolute",
-    left: 10,
-    top: SCREEN_HEIGHT * 0.66,
-    width: SCREEN_WIDTH - 20,
-    height: 212,
+    left: 24,
+    top: SCREEN_HEIGHT * 0.63,
+    width: SCREEN_WIDTH - 48,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    padding: 16,
+    shadowColor: "rgba(255, 250, 250, 0.1)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 13,
+    elevation: 10,
+  },
+
+  focusModesGrid: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    gap: 12,
+  },
+
+  focusModeCard: {
+    flex: 1,
+    alignItems: "center",
+    gap: 8,
+  },
+
+  focusModeIconContainer: {
+    width: "100%",
+    aspectRatio: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+
+  focusModeLabel: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.6)",
+    textAlign: "center",
+    fontWeight: "400",
+  },
+
+  // Quick Actions
+  quickActionsContainer: {
+    position: "absolute",
+    left: 24,
+    width: SCREEN_WIDTH - 48,
+    // bottom is set dynamically in the component based on navBarHeight
+  },
+
+  quickActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 29,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 13,
-    elevation: 10,
-    padding: 15,
-    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
 
-  appRow: {
-    flexDirection: "row",
-    height: 53,
+  quickActionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 29,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 13,
-    elevation: 10,
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 10,
-  },
-
-  iconButton: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    minWidth: 60,
-    transform: [{ scale: 1 }],
-  },
-
-  iconEmoji: {
-    fontSize: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
     textAlign: "center",
-    marginBottom: 2,
-  },
-
-  iconLabel: {
-    fontFamily: "ZenDots-Regular",
-    fontSize: 8,
-    color: "rgba(255, 255, 255, 0.6)",
-    textAlign: "center",
+    marginTop: 4,
   },
 });

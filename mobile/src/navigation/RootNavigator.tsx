@@ -2,11 +2,15 @@
  * Root Navigator
  *
  * Main navigation structure with bottom tabs and stack screens
+ * Uses dynamic WindowInsets monitoring for proper system bar handling
  */
 
 import React from "react";
+import { Animated, Easing } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSystemInsets } from "../hooks/useSystemInsets";
 import HomeShell from "../screens/HomeShell";
 import DashboardScreen from "../screens/dashboard/DashboardScreen";
 import AppDrawerScreen from "../screens/appDrawer/AppDrawerScreen";
@@ -27,47 +31,67 @@ import DeepWorkScreen from "../screens/DeepWorkScreen";
 import FrictionSettings from "../screens/FrictionSettings";
 import AppSelectionScreen from "../screens/AppSelectionScreen";
 import FrictionOverlay from "../screens/FrictionOverlay";
+import AmbientMusicScreen from "../screens/AmbientMusicScreen";
 import { colors } from "../theme";
-import { Text } from "../components/atoms";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 function TabNavigator() {
+  // Use dynamic system insets from native WindowInsets API
+  const { insets, navBarHeight, isNavBarVisible, isKeyboardVisible } =
+    useSystemInsets();
+
+  // Calculate tab bar dimensions with safe defaults
+  const TAB_BAR_BASE_HEIGHT = 60;
+
+  // Ensure navBarHeight is a valid number
+  const safeNavBarHeight =
+    typeof navBarHeight === "number" && !isNaN(navBarHeight) ? navBarHeight : 0;
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
-          borderTopColor: "rgba(255, 255, 255, 0.1)",
-          borderTopWidth: 1,
-          shadowColor: "#FFFFFF",
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.1,
-          shadowRadius: 10,
-          elevation: 10,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 70,
-        },
-        tabBarActiveTintColor: colors.accent,
+        tabBarStyle: isKeyboardVisible
+          ? { display: "none" }
+          : {
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.98)",
+              borderTopColor: "rgba(255, 255, 255, 0.1)",
+              borderTopWidth: 1,
+              height: TAB_BAR_BASE_HEIGHT + safeNavBarHeight,
+              paddingBottom: safeNavBarHeight,
+              paddingTop: 8,
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+        tabBarActiveTintColor: "#FFFFFF",
         tabBarInactiveTintColor: "rgba(255, 255, 255, 0.5)",
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "400",
+          marginBottom: 4,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
         },
       }}
     >
       <Tab.Screen
-        name="Apps"
+        name="Home"
         component={HomeShell}
         options={{
-          tabBarLabel: "Apps",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20 }}>
-              {color === colors.accent ? "📱" : "📲"}
-            </Text>
+          tabBarLabel: "Home",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={24}
+              color={color}
+            />
           ),
         }}
       />
@@ -76,10 +100,12 @@ function TabNavigator() {
         component={TasksScreen}
         options={{
           tabBarLabel: "Tasks",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20 }}>
-              {color === colors.accent ? "✅" : "☑️"}
-            </Text>
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "checkbox" : "checkbox-outline"}
+              size={24}
+              color={color}
+            />
           ),
         }}
       />
@@ -88,10 +114,12 @@ function TabNavigator() {
         component={FocusTimerScreen}
         options={{
           tabBarLabel: "Focus",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20 }}>
-              {color === colors.accent ? "⏱️" : "⏲️"}
-            </Text>
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "timer" : "timer-outline"}
+              size={24}
+              color={color}
+            />
           ),
         }}
       />
@@ -100,10 +128,12 @@ function TabNavigator() {
         component={StatsScreen}
         options={{
           tabBarLabel: "Stats",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20 }}>
-              {color === colors.accent ? "📊" : "�"}
-            </Text>
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "bar-chart" : "bar-chart-outline"}
+              size={24}
+              color={color}
+            />
           ),
         }}
       />
@@ -140,6 +170,7 @@ export default function RootNavigator() {
       <Stack.Screen name="DeepWork" component={DeepWorkScreen} />
       <Stack.Screen name="FrictionSettings" component={FrictionSettings} />
       <Stack.Screen name="AppSelection" component={AppSelectionScreen} />
+      <Stack.Screen name="AmbientMusic" component={AmbientMusicScreen} />
       <Stack.Screen name="FrictionOverlay" component={FrictionOverlay} />
     </Stack.Navigator>
   );

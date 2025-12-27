@@ -42,6 +42,7 @@ interface ZenLauncherModule {
   requestSetAsDefaultLauncher(): Promise<LauncherResult>;
   hideSystemUI(): Promise<boolean>;
   showSystemUI(): Promise<boolean>;
+  forceHideSystemBars(): Promise<boolean>;
   getInstalledApps(): Promise<InstalledApp[]>;
   launchApp(packageName: string): Promise<AppLaunchResult>;
   isAppRunning(packageName: string): Promise<AppRunningInfo>;
@@ -360,6 +361,30 @@ interface AccessibilityModule {
 }
 
 // ============================================================================
+// SystemUI Module
+// ============================================================================
+
+export interface SystemInsets {
+  navBarBottom: number;
+  navBarTop: number;
+  navBarLeft: number;
+  navBarRight: number;
+  statusBarTop: number;
+  systemBarsBottom: number;
+  systemBarsTop: number;
+  keyboardHeight: number;
+  keyboardVisible: boolean;
+  navBarVisible: boolean;
+  statusBarVisible: boolean;
+}
+
+interface SystemUIModule {
+  startMonitoring(): Promise<boolean>;
+  stopMonitoring(): Promise<boolean>;
+  getCurrentInsets(): Promise<SystemInsets>;
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -376,6 +401,7 @@ const {
   BackupModule: Backup,
   GestureModule: Gesture,
   AccessibilityModule: Accessibility,
+  SystemUIModule: SystemUI,
 } = NativeModules;
 
 export const zenLauncher = ZenLauncher as ZenLauncherModule;
@@ -383,6 +409,7 @@ export const appBlocker = AppBlocker as AppBlockerModule;
 export const usageStats = UsageStats as UsageStatsModule;
 export const zenNotification = ZenNotification as ZenNotificationModule;
 export const dndModule = DND as DNDModule;
+export const systemUI = SystemUI as SystemUIModule;
 export const focusEnforcement = FocusEnforcement as FocusEnforcementModule;
 export const focusNotification = FocusNotification as FocusNotificationModule;
 export const powerModule = Power as PowerModule;

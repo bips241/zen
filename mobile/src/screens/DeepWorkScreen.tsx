@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useStore } from "../store";
 
 export default function DeepWorkScreen() {
   const navigation = useNavigation();
@@ -66,10 +67,15 @@ export default function DeepWorkScreen() {
     }).start();
   }, [timeLeft, initialTime]);
 
-  const handleSessionComplete = () => {
+  const handleSessionComplete = async () => {
     setIsRunning(false);
+    const minutes = Math.floor(initialTime / 60);
     setCompletedSessions((prev) => prev + 1);
-    setTotalMinutes((prev) => prev + Math.floor(initialTime / 60));
+    setTotalMinutes((prev) => prev + minutes);
+
+    // Update global productivity tracker
+    const dayRefreshTime = useStore.getState().preferences.dayRefreshTime;
+    await useStore.getState().addFocusMinutes(minutes, dayRefreshTime);
   };
 
   const formatTime = (seconds: number) => {

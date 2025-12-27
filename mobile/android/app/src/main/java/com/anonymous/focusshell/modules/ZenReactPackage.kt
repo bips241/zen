@@ -5,6 +5,7 @@ import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 import com.anonymous.focusshell.OverlayModule
+import com.anonymous.focusshell.SystemUIModule
 
 class ZenReactPackage : ReactPackage {
     
@@ -22,7 +23,8 @@ class ZenReactPackage : ReactPackage {
             BackupModule(reactContext),
             GestureModule(reactContext),
             AccessibilityModule(reactContext),
-            OverlayModule(reactContext)
+            OverlayModule(reactContext),
+            SystemUIModule(reactContext)
         )
     }
 

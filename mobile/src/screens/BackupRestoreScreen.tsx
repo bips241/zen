@@ -260,11 +260,11 @@ const styles = StyleSheet.create({
   },
   statusDot: {
     fontSize: 12,
-    color: "#00FF88",
+    color: "#FFFFFF",
   },
   statusText: {
     fontSize: 12,
-    color: "#00FF88",
+    color: "#FFFFFF",
   },
   actions: {
     gap: 12,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     fontSize: 20,
-    color: "#00FF88",
+    color: "#FFFFFF",
   },
   autoBackupCard: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",

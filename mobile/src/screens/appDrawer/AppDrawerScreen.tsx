@@ -17,6 +17,7 @@ import {
   Animated,
   ScrollView,
 } from "react-native";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { Text, Container, Spacer } from "../../components/atoms";
 import { colors, spacing } from "../../theme";
 import { launcher } from "../../services/nativeBridge";
@@ -24,7 +25,11 @@ import type { InstalledApp } from "../../native-android/nativeModules";
 
 type ViewMode = "grid" | "list";
 
-export default function AppDrawerScreen() {
+interface AppDrawerScreenProps {
+  navigation: any;
+}
+
+export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
   const [apps, setApps] = useState<InstalledApp[]>([]);
   const [filteredApps, setFilteredApps] = useState<InstalledApp[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -129,11 +134,18 @@ export default function AppDrawerScreen() {
             activeOpacity={0.7}
             style={styles.appItemContent}
           >
-            {item.icon ? (
-              <Image source={{ uri: item.icon }} style={styles.appIconGrid} />
+            {item.icon && item.icon !== "" ? (
+              <Image
+                source={{ uri: `data:image/png;base64,${item.icon}` }}
+                style={[styles.appIconGrid, styles.grayscaleIcon]}
+              />
             ) : (
               <View style={[styles.appIconGrid, styles.appIconPlaceholder]}>
-                <Text variant="heading">{item.appName[0]?.toUpperCase()}</Text>
+                <MaterialCommunityIcons
+                  name="application"
+                  size={32}
+                  color="rgba(255, 255, 255, 0.6)"
+                />
               </View>
             )}
             <Text variant="body" style={styles.appNameGrid} numberOfLines={1}>
@@ -167,11 +179,18 @@ export default function AppDrawerScreen() {
           activeOpacity={0.7}
           style={styles.appItemListContent}
         >
-          {item.icon ? (
-            <Image source={{ uri: item.icon }} style={styles.appIconList} />
+          {item.icon && item.icon !== "" ? (
+            <Image
+              source={{ uri: `data:image/png;base64,${item.icon}` }}
+              style={[styles.appIconList, styles.grayscaleIcon]}
+            />
           ) : (
             <View style={[styles.appIconList, styles.appIconPlaceholder]}>
-              <Text variant="body">{item.appName[0]?.toUpperCase()}</Text>
+              <MaterialCommunityIcons
+                name="application"
+                size={24}
+                color="rgba(255, 255, 255, 0.6)"
+              />
             </View>
           )}
           <Text variant="body" style={styles.appNameList} numberOfLines={1}>
@@ -200,6 +219,13 @@ export default function AppDrawerScreen() {
     <Container padding="none">
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
         <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
           <Text variant="title" style={styles.headerTitle}>
             All Apps
           </Text>
@@ -208,14 +234,21 @@ export default function AppDrawerScreen() {
             style={styles.viewToggle}
             activeOpacity={0.7}
           >
-            <Text style={styles.viewToggleIcon}>
-              {viewMode === "grid" ? "☰" : "⊞"}
-            </Text>
+            {viewMode === "grid" ? (
+              <Ionicons name="list" size={24} color="#FFFFFF" />
+            ) : (
+              <Ionicons name="grid" size={24} color="#FFFFFF" />
+            )}
           </TouchableOpacity>
         </View>
         <Spacer size="md" />
         <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons
+            name="search"
+            size={20}
+            color="rgba(255, 255, 255, 0.6)"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search apps..."
@@ -277,19 +310,23 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  backButton: {
+    padding: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 8,
+  },
   headerTitle: {
+    flex: 1,
     fontSize: 24,
     color: "#FFFFFF",
     fontWeight: "400",
+    textAlign: "center",
+    marginHorizontal: 16,
   },
   viewToggle: {
     padding: 8,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 8,
-  },
-  viewToggleIcon: {
-    fontSize: 20,
-    color: "#FFFFFF",
   },
   searchContainer: {
     flexDirection: "row",
@@ -302,7 +339,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   searchIcon: {
-    fontSize: 20,
     marginRight: 8,
   },
   searchInput: {
@@ -370,6 +406,9 @@ const styles = StyleSheet.create({
   appIconPlaceholder: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  grayscaleIcon: {
+    opacity: 0.9,
   },
   loadingContainer: {
     flex: 1,

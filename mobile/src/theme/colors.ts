@@ -25,9 +25,9 @@ export const colors = {
   },
 
   // Accent & Semantic Colors
-  accent: "#00FF88", // Zen green (primary)
-  accentDark: "#00CC6A", // Darker green
-  accentLight: "#33FF99", // Lighter green
+  accent: "#FFFFFF", // Pure white (changed from green)
+  accentDark: "#CCCCCC", // Gray white
+  accentLight: "#FFFFFF", // Bright white
 
   error: "#FF4444", // Error red
   errorDark: "#CC0000", // Darker red

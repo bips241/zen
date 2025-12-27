@@ -16,10 +16,14 @@ import {
   Alert,
   SectionList,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "../components/atoms";
 import { colors, spacing } from "../theme";
 import { launcher, overlay, usage } from "../services/nativeBridge";
-import type { InstalledApp, AppUsageStats } from "../native-android/nativeModules";
+import type {
+  InstalledApp,
+  AppUsageStats,
+} from "../native-android/nativeModules";
 
 interface AppWithUsage extends InstalledApp {
   usageMinutes?: number;
@@ -46,7 +50,7 @@ export default function AppSelectionScreen({
 }: AppSelectionScreenProps) {
   const initialApps = route?.params?.selectedApps || [];
   console.log("AppSelectionScreen initialized with apps:", initialApps);
-  
+
   const [sections, setSections] = useState<AppSection[]>([]);
   const [selectedApps, setSelectedApps] = useState<Set<string>>(
     new Set(initialApps)
@@ -60,11 +64,11 @@ export default function AppSelectionScreen({
   const loadAppsWithUsage = async () => {
     try {
       setLoading(true);
-      
+
       // Load installed apps
       const installedApps = await launcher.getInstalledApps();
       console.log("Total installed apps:", installedApps.length);
-      
+
       // Filter out only Zen Mobile itself (keep all other apps including "system" apps)
       // Many useful apps like Chrome, Gmail are flagged as system apps but should be blockable
       const userApps = installedApps.filter(
@@ -75,7 +79,7 @@ export default function AppSelectionScreen({
       // Load usage stats for today
       const usageData = await usage.getTodayUsage();
       console.log("Usage data loaded:", usageData.length, "apps");
-      
+
       // Create usage map for quick lookup
       const usageMap = new Map<string, number>();
       usageData.forEach((usage) => {
@@ -105,14 +109,14 @@ export default function AppSelectionScreen({
 
       // Create sections
       const newSections: AppSection[] = [];
-      
+
       if (recommended.length > 0) {
         newSections.push({
           title: "Recommended (High Usage)",
           data: recommended,
         });
       }
-      
+
       if (others.length > 0) {
         newSections.push({
           title: "All Apps",
@@ -146,7 +150,7 @@ export default function AppSelectionScreen({
     try {
       const selectedArray = Array.from(selectedApps);
       console.log("Saving selected apps:", selectedArray);
-      
+
       // Navigate back and pass the selected apps
       // Use setParams to update the previous screen's params
       if (navigation.canGoBack()) {
@@ -164,7 +168,9 @@ export default function AppSelectionScreen({
 
   const renderAppItem = ({ item }: { item: AppWithUsage }) => {
     const isSelected = selectedApps.has(item.packageName);
-    const usageHours = item.usageMinutes ? Math.floor(item.usageMinutes / 60) : 0;
+    const usageHours = item.usageMinutes
+      ? Math.floor(item.usageMinutes / 60)
+      : 0;
     const usageMins = item.usageMinutes ? item.usageMinutes % 60 : 0;
     const usageText = item.usageMinutes
       ? usageHours > 0
@@ -181,13 +187,19 @@ export default function AppSelectionScreen({
         onPress={() => toggleApp(item.packageName)}
       >
         <View style={styles.appContent}>
-          {item.icon ? (
+          {item.icon && item.icon !== "" ? (
             <Image
               source={{ uri: `data:image/png;base64,${item.icon}` }}
-              style={styles.appIcon}
+              style={[styles.appIcon, styles.grayscaleIcon]}
             />
           ) : (
-            <View style={[styles.appIcon, styles.placeholderIcon]} />
+            <View style={[styles.appIcon, styles.placeholderIcon]}>
+              <MaterialCommunityIcons
+                name="application"
+                size={32}
+                color="rgba(255, 255, 255, 0.6)"
+              />
+            </View>
           )}
           <View style={styles.appInfo}>
             <View style={styles.appNameRow}>
@@ -470,5 +482,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.accent,
     fontWeight: "500",
+  },
+
+  grayscaleIcon: {
+    opacity: 0.9,
   },
 });

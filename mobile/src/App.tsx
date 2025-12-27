@@ -6,7 +6,14 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import { StatusBar, View, ActivityIndicator, StyleSheet, AppState } from "react-native";
+import {
+  StatusBar,
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  AppState,
+} from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import RootNavigator from "./navigation/RootNavigator";
 import { colors } from "./theme";
 import { database } from "./database";
@@ -28,10 +35,13 @@ export default function App() {
 
   useEffect(() => {
     initializeApp();
-    
+
     // Check for friction triggers when app state changes
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
         // App has come to the foreground
         checkForFrictionTrigger();
       }
@@ -49,12 +59,12 @@ export default function App() {
   const checkForFrictionTrigger = async () => {
     try {
       const trigger = await overlay.getPendingFrictionTrigger();
-      console.log('[App] Checking for friction trigger:', trigger);
-      
+      console.log("[App] Checking for friction trigger:", trigger);
+
       if (trigger.hasTrigger && trigger.packageName) {
-        console.log('[App] Friction triggered for:', trigger.packageName);
+        console.log("[App] Friction triggered for:", trigger.packageName);
         if (navigationRef.current?.isReady()) {
-          navigationRef.current.navigate('FrictionOverlay', {
+          navigationRef.current.navigate("FrictionOverlay", {
             packageName: trigger.packageName,
             appName: trigger.packageName,
             delaySeconds: trigger.delaySeconds || 5,
@@ -62,7 +72,7 @@ export default function App() {
         }
       }
     } catch (error) {
-      console.error('[App] Error checking friction trigger:', error);
+      console.error("[App] Error checking friction trigger:", error);
     }
   };
 
@@ -107,12 +117,12 @@ export default function App() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <NavigationContainer ref={navigationRef}>
         <RootNavigator />
       </NavigationContainer>
-    </>
+    </SafeAreaProvider>
   );
 }
 

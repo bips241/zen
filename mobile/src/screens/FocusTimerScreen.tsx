@@ -8,6 +8,7 @@ import {
   Easing,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useStore } from "../store";
 
 export default function FocusTimerScreen() {
   const navigation = useNavigation();
@@ -16,6 +17,14 @@ export default function FocusTimerScreen() {
   const [initialTime, setInitialTime] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [sessions, setSessions] = useState(0);
+  const minutesCountedRef = useRef(0); // Track minutes already counted
+
+  // Connect to productivity tracker
+  const todayMinutes = useStore((state) => state.todayMinutes);
+  const dailyGoalMinutes = useStore(
+    (state) => state.preferences.dailyGoalMinutes
+  );
+  const currentStreak = useStore((state) => state.currentStreak);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -39,24 +48,85 @@ export default function FocusTimerScreen() {
     ]).start();
   }, []);
 
+  // Track minutes elapsed and add to productivity tracker
+  useEffect(() => {
+    if (isRunning && mode === "focus") {
+      const elapsedSeconds = initialTime - timeLeft;
+      const currentMinutes = Math.floor(elapsedSeconds / 60);
+
+      if (currentMinutes > minutesCountedRef.current) {
+        const newMinutesToAdd = currentMinutes - minutesCountedRef.current;
+        console.log(
+          "[FocusTimerScreen] 🎯 New minute(s) elapsed! Adding:",
+          newMinutesToAdd
+        );
+
+        const dayRefreshTime = useStore.getState().preferences.dayRefreshTime;
+        useStore
+          .getState()
+          .addFocusMinutes(newMinutesToAdd, dayRefreshTime)
+          .then(() => {
+            console.log(
+              "[FocusTimerScreen] ✅ Added",
+              newMinutesToAdd,
+              "minute(s) to tracker"
+            );
+          })
+          .catch((error) => {
+            console.error(
+              "[FocusTimerScreen] ❌ Failed to add minutes:",
+              error
+            );
+          });
+
+        minutesCountedRef.current = currentMinutes;
+      }
+    }
+  }, [timeLeft, isRunning, mode, initialTime]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
+    if (isRunning) {
+      console.log(
+        "[FocusTimerScreen] Timer started, mode:",
+        mode,
+        "initialTime:",
+        initialTime
+      );
       interval = setInterval(() => {
         setTimeLeft((prev) => {
-          if (prev <= 1) {
+          const newValue = prev - 1;
+
+          // Log every 10 seconds or in last 5 seconds
+          if (newValue % 10 === 0 || newValue < 5) {
+            console.log("[FocusTimerScreen] Timer tick:", prev, "->", newValue);
+          }
+
+          if (newValue <= 0) {
+            console.log("[FocusTimerScreen] ⏰ Timer reached completion!");
             setIsRunning(false);
+
             if (mode === "focus") {
-              setSessions((prev) => prev + 1);
+              console.log("[FocusTimerScreen] ✅ FOCUS SESSION COMPLETE!");
+              setSessions((prevSessions) => prevSessions + 1);
+              // Minutes already tracked in real-time via useEffect, just reset counter
+              minutesCountedRef.current = 0;
+            } else {
+              console.log("[FocusTimerScreen] Break complete, not tracking");
             }
             return 0;
           }
-          return prev - 1;
+          return newValue;
         });
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft, mode]);
+    return () => {
+      if (interval) {
+        console.log("[FocusTimerScreen] Cleaning up interval");
+        clearInterval(interval);
+      }
+    };
+  }, [isRunning, mode, initialTime]);
 
   useEffect(() => {
     const progress = ((initialTime - timeLeft) / initialTime) * 100;
@@ -82,6 +152,7 @@ export default function FocusTimerScreen() {
 
   const handleReset = () => {
     setIsRunning(false);
+    minutesCountedRef.current = 0;
     setTimeLeft(initialTime);
   };
 
@@ -89,12 +160,14 @@ export default function FocusTimerScreen() {
     setMode(newMode);
     setIsRunning(false);
     const newTime = newMode === "focus" ? 25 * 60 : 5 * 60;
+    minutesCountedRef.current = 0;
     setTimeLeft(newTime);
     setInitialTime(newTime);
   };
 
   const adjustTime = (delta: number) => {
     if (!isRunning) {
+      minutesCountedRef.current = 0;
       const newTime = Math.max(60, initialTime + delta * 60);
       setInitialTime(newTime);
       setTimeLeft(newTime);
@@ -257,12 +330,12 @@ export default function FocusTimerScreen() {
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{sessions}</Text>
-            <Text style={styles.statLabel}>Sessions Today</Text>
+            <Text style={styles.statLabel}>Sessions (This Screen)</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{sessions * 25}</Text>
-            <Text style={styles.statLabel}>Minutes</Text>
+            <Text style={styles.statValue}>{todayMinutes}</Text>
+            <Text style={styles.statLabel}>Total Minutes Today</Text>
           </View>
         </View>
       </Animated.View>
@@ -302,13 +375,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-evenly",
     paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   modeSelector: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 48,
   },
   modeButton: {
     paddingHorizontal: 32,
@@ -331,31 +404,30 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   timerCircle: {
-    width: 320,
-    height: 320,
+    width: 280,
+    height: 280,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 48,
   },
   progressContainer: {
     position: "absolute",
-    width: 280,
-    height: 280,
+    width: 240,
+    height: 240,
   },
   progressBackground: {
     position: "absolute",
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    borderWidth: 8,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    borderWidth: 6,
     borderColor: "rgba(255, 255, 255, 0.1)",
   },
   progressRing: {
     position: "absolute",
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    borderWidth: 8,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    borderWidth: 6,
     borderColor: "transparent",
     borderTopColor: "#FFFFFF",
     borderRightColor: "#FFFFFF",
@@ -364,10 +436,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timerText: {
-    fontSize: 72,
+    fontSize: 64,
     color: "#FFFFFF",
     fontWeight: "300",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   timerLabel: {
     fontSize: 12,
@@ -378,7 +450,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    marginBottom: 48,
   },
   adjustButton: {
     width: 48,

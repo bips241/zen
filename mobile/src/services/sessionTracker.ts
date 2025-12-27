@@ -14,6 +14,8 @@ class SessionTrackerService {
   private timer: NodeJS.Timeout | null = null;
   private currentSessionId: string | null = null;
   private sessionStartTime: number | null = null;
+  private pausedElapsedSeconds: number = 0; // Track elapsed time before pause
+  private minutesAlreadyCounted: number = 0; // Track minutes already added to productivity tracker
 
   /**
    * Start a new focus session
@@ -46,6 +48,8 @@ class SessionTrackerService {
 
     this.currentSessionId = session.id;
     this.sessionStartTime = session.startedAt;
+    this.pausedElapsedSeconds = 0; // Reset for new session
+    this.minutesAlreadyCounted = 0; // Reset counter for new session
 
     // Update store
     useStore.getState().setCurrentSession({
@@ -71,11 +75,31 @@ class SessionTrackerService {
    * Pause current session
    */
   async pauseSession(): Promise<void> {
-    if (!this.currentSessionId) {
+    if (!this.currentSessionId || !this.sessionStartTime) {
       throw new Error("No active session to pause");
     }
 
     const session = await collections.sessions.find(this.currentSessionId);
+
+    // Store the NEW minutes elapsed since last pause (not already counted)
+    const totalMinutesElapsed = Math.floor(session.elapsedSeconds / 60);
+    const newMinutes = totalMinutesElapsed - this.minutesAlreadyCounted;
+
+    if (newMinutes > 0) {
+      const dayRefreshTime = useStore.getState().preferences.dayRefreshTime;
+      await useStore.getState().addFocusMinutes(newMinutes, dayRefreshTime);
+      this.minutesAlreadyCounted = totalMinutesElapsed; // Update counter
+      console.log(
+        "[SessionTracker] Stored",
+        newMinutes,
+        "minutes on pause (total:",
+        totalMinutesElapsed,
+        ")"
+      );
+    }
+
+    // Save current elapsed time before pausing
+    this.pausedElapsedSeconds = session.elapsedSeconds;
 
     await database.write(async () => {
       await session.update((s) => {
@@ -104,6 +128,9 @@ class SessionTrackerService {
     }
 
     const session = await collections.sessions.find(this.currentSessionId);
+
+    // Reset start time to now, so timer continues from paused elapsed time
+    this.sessionStartTime = Date.now();
 
     await database.write(async () => {
       await session.update((s) => {
@@ -148,19 +175,34 @@ class SessionTrackerService {
       });
     });
 
-    // Update daily stats
+    // Update daily stats in database
     await this.updateDailyStats(session, completed);
+
+    // Update Zustand store for UI - only add NEW minutes not already counted
+    const totalMinutesCompleted = Math.floor(session.elapsedSeconds / 60);
+    const newMinutes = totalMinutesCompleted - this.minutesAlreadyCounted;
+
+    if (newMinutes > 0) {
+      const dayRefreshTime = useStore.getState().preferences.dayRefreshTime;
+      await useStore.getState().addFocusMinutes(newMinutes, dayRefreshTime);
+    }
 
     // Clear current session
     this.currentSessionId = null;
     this.sessionStartTime = null;
+    this.pausedElapsedSeconds = 0; // Reset paused time
+    this.minutesAlreadyCounted = 0; // Reset counted minutes
     useStore.getState().setCurrentSession(null);
 
     console.log(
       "[SessionTracker] Session ended:",
       session.id,
       "completed:",
-      completed
+      completed,
+      "new minutes:",
+      newMinutes,
+      "total minutes:",
+      totalMinutesCompleted
     );
     return session;
   }
@@ -224,7 +266,11 @@ class SessionTrackerService {
     this.timer = setInterval(async () => {
       if (!this.currentSessionId || !this.sessionStartTime) return;
 
-      const elapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
+      // Calculate elapsed: time since current start + any paused elapsed time
+      const currentRunTime = Math.floor(
+        (Date.now() - this.sessionStartTime) / 1000
+      );
+      const elapsed = this.pausedElapsedSeconds + currentRunTime;
 
       // Update database every second
       await database.write(async () => {

@@ -63,35 +63,37 @@ export default function FrictionSettings({
   useEffect(() => {
     // Update selected apps from navigation params and save to database
     const saveBlockedApps = async () => {
-      if (route?.params?.selectedApps !== undefined) {
-        console.log("Received selected apps:", route.params.selectedApps);
+      const apps = route?.params?.selectedApps;
+      if (!apps) {
+        return;
+      }
+      console.log("Received selected apps:", apps);
+      
+      try {
+        const blockedAppsCollection = database.get("blocked_apps");
         
-        try {
-          const blockedAppsCollection = database.get("blocked_apps");
+        await database.write(async () => {
+          // Clear all existing blocked apps
+          const existingApps = await blockedAppsCollection.query().fetch();
+          for (const app of existingApps) {
+            await app.destroyPermanently();
+          }
           
-          await database.write(async () => {
-            // Clear all existing blocked apps
-            const existingApps = await blockedAppsCollection.query().fetch();
-            for (const app of existingApps) {
-              await app.destroyPermanently();
-            }
-            
-            // Create new blocked app records
-            for (const packageName of route.params.selectedApps) {
-              await blockedAppsCollection.create((record: any) => {
-                record.packageName = packageName;
-                record.appName = packageName; // We'll update with real name later
-                record.isBlocked = true;
-                record.blockMode = "always";
-              });
-            }
-          });
-          
-          console.log("Saved blocked apps to database:", route.params.selectedApps);
-          setSelectedApps(route.params.selectedApps);
-        } catch (error) {
-          console.error("Error saving blocked apps:", error);
-        }
+          // Create new blocked app records
+          for (const packageName of apps) {
+            await blockedAppsCollection.create((record: any) => {
+              record.packageName = packageName;
+              record.appName = packageName; // We'll update with real name later
+              record.isBlocked = true;
+              record.blockMode = "always";
+            });
+          }
+        });
+        
+        console.log("Saved blocked apps to database:", apps);
+        setSelectedApps(apps);
+      } catch (error) {
+        console.error("Error saving blocked apps:", error);
       }
     };
     

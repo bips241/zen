@@ -16,6 +16,7 @@ export interface UserSlice {
   setUser: (user: User) => void;
   updatePreferences: (preferences: Partial<UserPreferences>) => void;
   updateDailyGoal: (minutes: number) => void;
+  updateDayRefreshTime: (time: string) => void;
   toggleHaptics: () => void;
   toggleSounds: () => void;
   addBlockedApp: (packageName: string) => void;
@@ -35,6 +36,7 @@ const defaultPreferences: UserPreferences = {
   blockListApps: [],
   allowEmergencyApps: ["com.android.phone", "com.android.contacts"],
   frictionSeconds: 5,
+  dayRefreshTime: "00:00", // Midnight by default
 };
 
 export const createUserSlice: StateCreator<UserSlice> = (set) => ({
@@ -53,6 +55,11 @@ export const createUserSlice: StateCreator<UserSlice> = (set) => ({
   updateDailyGoal: (minutes) =>
     set((state) => ({
       preferences: { ...state.preferences, dailyGoalMinutes: minutes },
+    })),
+
+  updateDayRefreshTime: (time) =>
+    set((state) => ({
+      preferences: { ...state.preferences, dayRefreshTime: time },
     })),
 
   toggleHaptics: () =>

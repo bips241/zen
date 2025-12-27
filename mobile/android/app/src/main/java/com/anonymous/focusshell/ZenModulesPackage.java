@@ -24,6 +24,7 @@ public class ZenModulesPackage implements ReactPackage {
         modules.add(new UsageStatsModule(reactContext));
         modules.add(new NotificationModule(reactContext));
         modules.add(new OverlayModule(reactContext));
+        modules.add(new SystemUIModule(reactContext));
         
         return modules;
     }

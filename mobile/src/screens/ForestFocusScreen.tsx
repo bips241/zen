@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useStore } from "../store";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -92,8 +93,13 @@ export default function ForestFocusScreen() {
     }).start();
   }, [timeLeft, initialTime]);
 
-  const handleSessionComplete = () => {
+  const handleSessionComplete = async () => {
     setIsRunning(false);
+
+    // Update global productivity tracker
+    const minutes = Math.floor(initialTime / 60);
+    const dayRefreshTime = useStore.getState().preferences.dayRefreshTime;
+    await useStore.getState().addFocusMinutes(minutes, dayRefreshTime);
 
     // Add completed tree to forest
     const treeType: Tree["type"] =
