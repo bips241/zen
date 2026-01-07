@@ -1,14 +1,10 @@
 <resources>
   <string name="app_name">FocusShell</string>
-  
-  <!-- App Shortcuts -->
   <string name="shortcut_focus_short">Focus</string>
   <string name="shortcut_focus_long">Start Focus Session</string>
   <string name="shortcut_tratak_short">Tratak</string>
   <string name="shortcut_tratak_long">Start Tratak Meditation</string>
   <string name="shortcut_stats_short">Stats</string>
   <string name="shortcut_stats_long">View Usage Stats</string>
-  
-  <!-- Accessibility Service -->
   <string name="accessibility_service_description">Zen Focus Mode: Blocks distracting apps during focus sessions for improved productivity. Requires accessibility access for system-level app blocking.</string>
 </resources>
