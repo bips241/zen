@@ -398,17 +398,7 @@ export default function HomeShell({ navigation }: HomeShellProps) {
       </Animated.View>
 
       {/* Quick Actions - Dynamically positioned above tab bar */}
-      <Animated.View
-        style={[
-          styles.quickActionsContainer,
-          {
-            // Dynamic bottom positioning: tab bar (60px) + nav bar height + margin
-            bottom: 60 + safeNavBarHeight + 16,
-            opacity: fadeAnim,
-            transform: [{ translateY: slideUpAnim }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.quickActionsContainer]}>
         <View style={styles.quickActionsRow}>
           <TouchableOpacity
             style={styles.quickActionButton}
@@ -599,14 +589,14 @@ const styles = StyleSheet.create({
 
   statValue: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 18,
+    fontSize: 15,
     lineHeight: 22,
     color: "#FFFFFF",
     fontWeight: "300",
   },
 
   statLabel: {
-    fontSize: 10,
+    fontSize: 8,
     color: "rgba(255, 255, 255, 0.5)",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -637,15 +627,15 @@ const styles = StyleSheet.create({
   // Focus Modes Container
   focusModesContainer: {
     position: "absolute",
-    left: 24,
+    left: 10,
     top: SCREEN_HEIGHT * 0.63,
-    width: SCREEN_WIDTH - 48,
+    width: SCREEN_WIDTH - 20,
+    height: SCREEN_HEIGHT * 0.14,
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
-    padding: 16,
-    shadowColor: "rgba(255, 250, 250, 0.1)",
+    padding: 12,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 13,
@@ -653,26 +643,30 @@ const styles = StyleSheet.create({
   },
 
   focusModesGrid: {
+    flex: 1,
     flexDirection: "row",
     justifyContent: "space-around",
-    gap: 12,
+    alignItems: "stretch",
+    gap: 8,
   },
 
   focusModeCard: {
     flex: 1,
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
   },
 
   focusModeIconContainer: {
-    width: "100%",
-    aspectRatio: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 16,
+    flex: 1,
+    width: "80%",
+    height: 10,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginBottom: 1,
   },
 
   focusModeLabel: {
@@ -685,9 +679,10 @@ const styles = StyleSheet.create({
   // Quick Actions
   quickActionsContainer: {
     position: "absolute",
-    left: 24,
-    width: SCREEN_WIDTH - 48,
-    // bottom is set dynamically in the component based on navBarHeight
+    left: 10,
+    width: SCREEN_WIDTH - 20,
+    bottom: 60,
+    height: 72,
   },
 
   quickActionsRow: {
