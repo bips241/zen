@@ -5,7 +5,7 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
  * @see https://nozbe.github.io/WatermelonDB/Schema.html
  */
 export const schema = appSchema({
-  version: 1,
+  version: 3,
   tables: [
     // Focus Sessions
     tableSchema({
@@ -75,6 +75,28 @@ export const schema = appSchema({
       columns: [
         { name: "key", type: "string", isIndexed: true },
         { name: "value", type: "string" }, // JSON serialized value
+        { name: "updated_at", type: "number" },
+      ],
+    }),
+
+    // Tasks
+    tableSchema({
+      name: "tasks",
+      columns: [
+        { name: "text", type: "string" },
+        { name: "completed", type: "boolean" },
+        { name: "priority", type: "string" }, // 'urgent-important', 'urgent', 'important', 'low'
+        { name: "category", type: "string" },
+        { name: "due_date", type: "number", isOptional: true }, // Unix timestamp
+        { name: "task_time", type: "string", isOptional: true }, // Time in HH:MM format
+        { name: "time_estimate", type: "number", isOptional: true }, // minutes
+        { name: "recurring_type", type: "string", isOptional: true }, // 'daily', 'weekly', 'monthly', 'custom'
+        { name: "recurring_weekdays", type: "string", isOptional: true }, // JSON array of weekday numbers
+        { name: "recurring_end_date", type: "number", isOptional: true }, // Unix timestamp
+        { name: "recurring_interval", type: "number", isOptional: true },
+        { name: "subtasks", type: "string", isOptional: true }, // JSON array
+        { name: "notes", type: "string", isOptional: true },
+        { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
       ],
     }),

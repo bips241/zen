@@ -7,3 +7,4 @@ export { default as DailyStats } from "./DailyStats";
 export { default as AppUsage } from "./AppUsage";
 export { default as BlockedApp } from "./BlockedApp";
 export { default as Setting } from "./Setting";
+export { default as Task } from "./Task";

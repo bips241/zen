@@ -1,6 +1,7 @@
 import { Database } from "@nozbe/watermelondb";
 import SQLiteAdapter from "@nozbe/watermelondb/adapters/sqlite";
 import { schema } from "./schema";
+import migrations from "./migrations";
 import {
   Session,
   SessionEvent,
@@ -8,6 +9,7 @@ import {
   AppUsage,
   BlockedApp,
   Setting,
+  Task,
 } from "./models";
 
 /**
@@ -18,8 +20,7 @@ import {
 // Create adapter for SQLite
 const adapter = new SQLiteAdapter({
   schema,
-  // Optional: Enable migrations for schema updates
-  // migrations,
+  migrations,
   // Optional: Enable JSI for better performance
   jsi: true,
   // Optional: Enable on-device encryption (requires expo-sqlite)
@@ -36,6 +37,7 @@ export const database = new Database({
     AppUsage,
     BlockedApp,
     Setting,
+    Task,
   ],
 });
 
@@ -47,6 +49,7 @@ export const collections = {
   appUsage: database.get<AppUsage>("app_usage"),
   blockedApps: database.get<BlockedApp>("blocked_apps"),
   settings: database.get<Setting>("settings"),
+  tasks: database.get<Task>("tasks"),
 };
 
 /**
