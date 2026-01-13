@@ -17,14 +17,17 @@ import {
  * @see https://nozbe.github.io/WatermelonDB/Installation.html
  */
 
-// Create adapter for SQLite
+// Create adapter for SQLite with expo-sqlite driver
 const adapter = new SQLiteAdapter({
   schema,
   migrations,
-  // Optional: Enable JSI for better performance
-  jsi: true,
-  // Optional: Enable on-device encryption (requires expo-sqlite)
-  // dbName: 'zen_mobile_encrypted.db',
+  // JSI disabled for compatibility with release builds on Samsung devices
+  jsi: false,
+  // Use expo-sqlite as the native driver for Expo apps
+  dbName: "zen_mobile.db",
+  onSetUpError: (error) => {
+    console.error("WatermelonDB setup error:", error);
+  },
 });
 
 // Create database instance

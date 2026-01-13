@@ -15,9 +15,11 @@ import {
   TextInput,
   Modal,
   Dimensions,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSystemInsets } from "../hooks/useSystemInsets";
 import { CategoryService } from "../services/categoryService";
 import { TaskService, TaskData } from "../services/taskService";
@@ -410,13 +412,6 @@ export default function TasksScreen() {
   const formatTaskTime = (time?: string) => {
     if (!time) return "No time set";
     return time;
-  };
-
-  const handleTimeChange = (hours: number, minutes: number) => {
-    const timeString = `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}`;
-    setNewTask({ ...newTask, taskTime: timeString });
   };
 
   // Generate calendar days for current month
@@ -970,50 +965,44 @@ export default function TasksScreen() {
                 </TouchableOpacity>
                 {showTimePicker && (
                   <View style={styles.timePicker}>
-                    <View style={styles.timeInputs}>
-                      <TextInput
-                        style={styles.timeInput}
-                        placeholder="HH"
-                        placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                        keyboardType="number-pad"
-                        maxLength={2}
-                        value={newTask.taskTime?.split(":")[0] || ""}
-                        onChangeText={(text) => {
-                          const hours = parseInt(text) || 0;
-                          if (hours >= 0 && hours < 24) {
-                            const minutes =
-                              parseInt(
-                                newTask.taskTime?.split(":")[1] || "0"
-                              ) || 0;
-                            handleTimeChange(hours, minutes);
-                          }
-                        }}
-                      />
-                      <Text style={styles.timeColon}>:</Text>
-                      <TextInput
-                        style={styles.timeInput}
-                        placeholder="MM"
-                        placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                        keyboardType="number-pad"
-                        maxLength={2}
-                        value={newTask.taskTime?.split(":")[1] || ""}
-                        onChangeText={(text) => {
-                          const minutes = parseInt(text) || 0;
-                          if (minutes >= 0 && minutes < 60) {
-                            const hours =
-                              parseInt(
-                                newTask.taskTime?.split(":")[0] || "0"
-                              ) || 0;
-                            handleTimeChange(hours, minutes);
-                          }
-                        }}
-                      />
-                    </View>
+                    <DateTimePicker
+                      value={(() => {
+                        const date = new Date();
+                        if (newTask.taskTime) {
+                          const [hours, minutes] = newTask.taskTime
+                            .split(":")
+                            .map(Number);
+                          date.setHours(hours || 0, minutes || 0, 0, 0);
+                        }
+                        return date;
+                      })()}
+                      mode="time"
+                      is24Hour={true}
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={(event, selectedDate) => {
+                        if (event.type === "set" && selectedDate) {
+                          const hours = selectedDate.getHours();
+                          const minutes = selectedDate.getMinutes();
+                          const timeString = `${String(hours).padStart(
+                            2,
+                            "0"
+                          )}:${String(minutes).padStart(2, "0")}`;
+                          setNewTask({ ...newTask, taskTime: timeString });
+                        }
+                        if (Platform.OS === "android") {
+                          setShowTimePicker(false);
+                        }
+                      }}
+                      textColor="#FFFFFF"
+                      themeVariant="dark"
+                      style={{ width: "100%" }}
+                    />
                     {newTask.taskTime && (
                       <TouchableOpacity
-                        onPress={() =>
-                          setNewTask({ ...newTask, taskTime: undefined })
-                        }
+                        onPress={() => {
+                          setNewTask({ ...newTask, taskTime: undefined });
+                          setShowTimePicker(false);
+                        }}
                         style={styles.clearTimeButton}
                       >
                         <Text style={styles.clearTimeText}>Clear Time</Text>
@@ -1540,50 +1529,44 @@ export default function TasksScreen() {
                 </TouchableOpacity>
                 {showTimePicker && (
                   <View style={styles.timePicker}>
-                    <View style={styles.timeInputs}>
-                      <TextInput
-                        style={styles.timeInput}
-                        placeholder="HH"
-                        placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                        keyboardType="number-pad"
-                        maxLength={2}
-                        value={newTask.taskTime?.split(":")[0] || ""}
-                        onChangeText={(text) => {
-                          const hours = parseInt(text) || 0;
-                          if (hours >= 0 && hours < 24) {
-                            const minutes =
-                              parseInt(
-                                newTask.taskTime?.split(":")[1] || "0"
-                              ) || 0;
-                            handleTimeChange(hours, minutes);
-                          }
-                        }}
-                      />
-                      <Text style={styles.timeColon}>:</Text>
-                      <TextInput
-                        style={styles.timeInput}
-                        placeholder="MM"
-                        placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                        keyboardType="number-pad"
-                        maxLength={2}
-                        value={newTask.taskTime?.split(":")[1] || ""}
-                        onChangeText={(text) => {
-                          const minutes = parseInt(text) || 0;
-                          if (minutes >= 0 && minutes < 60) {
-                            const hours =
-                              parseInt(
-                                newTask.taskTime?.split(":")[0] || "0"
-                              ) || 0;
-                            handleTimeChange(hours, minutes);
-                          }
-                        }}
-                      />
-                    </View>
+                    <DateTimePicker
+                      value={(() => {
+                        const date = new Date();
+                        if (newTask.taskTime) {
+                          const [hours, minutes] = newTask.taskTime
+                            .split(":")
+                            .map(Number);
+                          date.setHours(hours || 0, minutes || 0, 0, 0);
+                        }
+                        return date;
+                      })()}
+                      mode="time"
+                      is24Hour={true}
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={(event, selectedDate) => {
+                        if (event.type === "set" && selectedDate) {
+                          const hours = selectedDate.getHours();
+                          const minutes = selectedDate.getMinutes();
+                          const timeString = `${String(hours).padStart(
+                            2,
+                            "0"
+                          )}:${String(minutes).padStart(2, "0")}`;
+                          setNewTask({ ...newTask, taskTime: timeString });
+                        }
+                        if (Platform.OS === "android") {
+                          setShowTimePicker(false);
+                        }
+                      }}
+                      textColor="#FFFFFF"
+                      themeVariant="dark"
+                      style={{ width: "100%" }}
+                    />
                     {newTask.taskTime && (
                       <TouchableOpacity
-                        onPress={() =>
-                          setNewTask({ ...newTask, taskTime: undefined })
-                        }
+                        onPress={() => {
+                          setNewTask({ ...newTask, taskTime: undefined });
+                          setShowTimePicker(false);
+                        }}
                         style={styles.clearTimeButton}
                       >
                         <Text style={styles.clearTimeText}>Clear Time</Text>
