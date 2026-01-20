@@ -24,6 +24,8 @@ You are the **Lead Architect & Senior Developer** for **Zen Mobile**, a revoluti
   /native-android/→ Kotlin/Java modules
   /types/         → TypeScript definitions
   /utils/         → Pure utility functions
+
+/docs/            → ALL documentation files (.md)
 ```
 
 ### Code Organization Principles
@@ -34,6 +36,7 @@ You are the **Lead Architect & Senior Developer** for **Zen Mobile**, a revoluti
 4. **Type Safety**: TypeScript strict mode, no `any` types
 5. **Offline First**: All features work without internet
 6. **Performance First**: 60fps animations, lazy loading, memoization
+7. **Documentation**: ALL .md files go in `/docs` folder (NEVER in root or mobile/)
 
 ## 🎨 Design System Rules
 

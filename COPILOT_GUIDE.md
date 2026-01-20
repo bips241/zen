@@ -12,7 +12,7 @@ I've set up a comprehensive context system for your Zen Mobile project. Here's w
 - **Contains**: Architecture rules, code patterns, design system
 - **When to update**: When adding new patterns or standards
 
-#### `TODO_PLAN.md` ✅ (Enhanced)
+#### `docs/TODO_PLAN.md` ✅ (Enhanced)
 
 - **Purpose**: Master blueprint with complete product vision
 - **Contains**: Phases, features, architecture, monetization
@@ -47,7 +47,7 @@ I've set up a comprehensive context system for your Zen Mobile project. Here's w
 
 Context needed:
 - Check /src/components/README.md for component patterns
-- Use colors from TODO_PLAN.md design system
+- Use colors from docs/TODO_PLAN.md design system
 - Integrate with sessionTracker service
 - Add haptic feedback
 ```
@@ -70,7 +70,7 @@ Requirements:
 
 ### Method 3: Open Relevant Files Before Asking
 
-1. Open `TODO_PLAN.md`
+1. Open `docs/TODO_PLAN.md`
 2. Open the specific README for context
 3. Open an example file (like existing component)
 4. **Then** ask Copilot
@@ -111,7 +111,7 @@ git commit -m "feat(session): Implement adaptive break recommendations
 - Integrate with haptic feedback service
 - Update SessionScreen with break countdown UI
 
-Follows Phase 3 architecture from TODO_PLAN.md"
+Follows Phase 3 architecture from docs/TODO_PLAN.md"
 ```
 
 ---
@@ -126,7 +126,7 @@ Follows Phase 3 architecture from TODO_PLAN.md"
 
 ### Weekly
 
-- [ ] Update TODO_PLAN.md with progress
+- [ ] Update docs/TODO_PLAN.md with progress
 - [ ] Add new patterns to component/service READMEs
 - [ ] Document architectural decisions
 
@@ -142,7 +142,7 @@ Follows Phase 3 architecture from TODO_PLAN.md"
 
 1. **`.github/copilot-instructions.md`** - Auto-loaded by GitHub
 2. **Open files in editor** - Active tabs
-3. **`TODO_PLAN.md`** - When using @workspace
+3. **`docs/TODO_PLAN.md`** - When using @workspace
 4. **Directory READMEs** - When navigating folders
 5. **Recent git commits** - Last 10-20 commits
 6. **Inline comments** - JSDoc and code comments
@@ -156,7 +156,7 @@ Follows Phase 3 architecture from TODO_PLAN.md"
 
 ```bash
 # Create a git hook to remind you
-echo "📝 Don't forget to update TODO_PLAN.md!" > .git/hooks/post-commit
+echo "📝 Don't forget to update docs/TODO_PLAN.md!" > .git/hooks/post-commit
 chmod +x .git/hooks/post-commit
 ```
 
@@ -205,7 +205,7 @@ goal management. Follow the same patterns:
 ### Pattern 1: Architecture Reference
 
 ```
-I need to create [FEATURE]. According to TODO_PLAN.md Phase [X],
+I need to create [FEATURE]. According to docs/TODO_PLAN.md Phase [X],
 this should use [PATTERN]. Generate the following files:
 - [FILE_1]
 - [FILE_2]
@@ -216,7 +216,7 @@ Following the structure in [REFERENCE_README].
 
 ```
 Create [COMPONENT] using the exact color scheme from
-TODO_PLAN.md section "Design System Rules". Use:
+docs/TODO_PLAN.md section "Design System Rules". Use:
 - True black (#000000) for background
 - Zen green (#00FF88) for accent
 - 8pt spacing grid
@@ -274,7 +274,7 @@ Add [FEATURE] by:
  * Import these types throughout the app for consistency.
  * Each type includes JSDoc with usage examples.
  *
- * Related: TODO_PLAN.md Section 2 (Architecture)
+ * Related: docs/TODO_PLAN.md Section 2 (Architecture)
  */
 
 export * from "./session";
@@ -367,7 +367,7 @@ With this context system, Copilot will:
 → Reference `/src/services/README.md`
 
 **Need architecture context?**
-→ Reference `TODO_PLAN.md`
+→ Reference `docs/TODO_PLAN.md`
 
 **Need design system?**
 → Reference `.github/copilot-instructions.md`

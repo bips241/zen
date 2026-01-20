@@ -11,15 +11,16 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Alert,
   SectionList,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "../components/atoms";
+import CachedAppIcon from "../components/molecules/CachedAppIcon";
 import { colors, spacing } from "../theme";
 import { launcher, overlay, usage } from "../services/nativeBridge";
+import { useIconCache } from "../hooks/useIconCache";
 import type {
   InstalledApp,
   AppUsageStats,
@@ -56,6 +57,9 @@ export default function AppSelectionScreen({
     new Set(initialApps)
   );
   const [loading, setLoading] = useState(true);
+
+  // Icon caching
+  const { isInitialized, preloadIcons } = useIconCache();
 
   useEffect(() => {
     loadAppsWithUsage();
@@ -126,6 +130,14 @@ export default function AppSelectionScreen({
 
       console.log("Total sections:", newSections.length);
       setSections(newSections);
+
+      // Preload icons in background
+      if (isInitialized) {
+        const allApps = [...recommended, ...others];
+        preloadIcons(allApps).catch((err) =>
+          console.error("[AppSelection] Failed to preload icons:", err)
+        );
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to load apps");
       console.error("Error loading apps:", error);
@@ -187,20 +199,13 @@ export default function AppSelectionScreen({
         onPress={() => toggleApp(item.packageName)}
       >
         <View style={styles.appContent}>
-          {item.icon && item.icon !== "" ? (
-            <Image
-              source={{ uri: `data:image/png;base64,${item.icon}` }}
-              style={[styles.appIcon, styles.grayscaleIcon]}
-            />
-          ) : (
-            <View style={[styles.appIcon, styles.placeholderIcon]}>
-              <MaterialCommunityIcons
-                name="application"
-                size={32}
-                color="rgba(255, 255, 255, 0.6)"
-              />
-            </View>
-          )}
+          <CachedAppIcon
+            packageName={item.packageName}
+            appName={item.appName}
+            icon={item.icon}
+            size={48}
+            grayscale={true}
+          />
           <View style={styles.appInfo}>
             <View style={styles.appNameRow}>
               <Text style={styles.appName}>{item.appName}</Text>

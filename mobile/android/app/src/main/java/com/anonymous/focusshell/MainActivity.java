@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.WindowManager;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
@@ -22,6 +23,17 @@ public class MainActivity extends ReactActivity {
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
+    
+    // Enable AOD/Lock screen support for Pomodoro
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+      setShowWhenLocked(true);
+      setTurnScreenOn(true);
+    } else {
+      Window window = getWindow();
+      window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
+      window.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+    }
+    
     super.onCreate(null);
     
     // Enable edge-to-edge mode - app draws behind system bars

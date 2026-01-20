@@ -12,15 +12,16 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Image,
   ActivityIndicator,
   Animated,
   ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { Text, Container, Spacer } from "../../components/atoms";
+import CachedAppIcon from "../../components/molecules/CachedAppIcon";
 import { colors, spacing } from "../../theme";
 import { launcher } from "../../services/nativeBridge";
+import { useIconCache } from "../../hooks/useIconCache";
 import type { InstalledApp } from "../../native-android/nativeModules";
 
 type ViewMode = "grid" | "list";
@@ -35,6 +36,9 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+
+  // Icon caching
+  const { isInitialized, preloadIcons, isPreloading } = useIconCache();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -74,6 +78,13 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
 
       setApps(sortedApps);
       setFilteredApps(sortedApps);
+
+      // Preload icons in background (don't block UI)
+      if (isInitialized) {
+        preloadIcons(sortedApps).catch((err) =>
+          console.error("[AppDrawer] Failed to preload icons:", err)
+        );
+      }
     } catch (error) {
       console.error("[AppDrawer] Error loading apps:", error);
     } finally {
@@ -134,20 +145,13 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
             activeOpacity={0.7}
             style={styles.appItemContent}
           >
-            {item.icon && item.icon !== "" ? (
-              <Image
-                source={{ uri: `data:image/png;base64,${item.icon}` }}
-                style={[styles.appIconGrid, styles.grayscaleIcon]}
-              />
-            ) : (
-              <View style={[styles.appIconGrid, styles.appIconPlaceholder]}>
-                <MaterialCommunityIcons
-                  name="application"
-                  size={32}
-                  color="rgba(255, 255, 255, 0.6)"
-                />
-              </View>
-            )}
+            <CachedAppIcon
+              packageName={item.packageName}
+              appName={item.appName}
+              icon={item.icon}
+              size={64}
+              grayscale={true}
+            />
             <Text variant="body" style={styles.appNameGrid} numberOfLines={1}>
               {item.appName}
             </Text>
@@ -179,20 +183,13 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
           activeOpacity={0.7}
           style={styles.appItemListContent}
         >
-          {item.icon && item.icon !== "" ? (
-            <Image
-              source={{ uri: `data:image/png;base64,${item.icon}` }}
-              style={[styles.appIconList, styles.grayscaleIcon]}
-            />
-          ) : (
-            <View style={[styles.appIconList, styles.appIconPlaceholder]}>
-              <MaterialCommunityIcons
-                name="application"
-                size={24}
-                color="rgba(255, 255, 255, 0.6)"
-              />
-            </View>
-          )}
+          <CachedAppIcon
+            packageName={item.packageName}
+            appName={item.appName}
+            icon={item.icon}
+            size={48}
+            grayscale={true}
+          />
           <Text variant="body" style={styles.appNameList} numberOfLines={1}>
             {item.appName}
           </Text>
@@ -389,26 +386,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
   },
-  appIconList: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    marginRight: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-  },
   appNameList: {
     flex: 1,
     fontSize: 16,
     color: "#FFFFFF",
-  },
-  appIconPlaceholder: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  grayscaleIcon: {
-    opacity: 0.9,
+    marginLeft: 16,
   },
   loadingContainer: {
     flex: 1,

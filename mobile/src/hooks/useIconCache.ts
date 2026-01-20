@@ -1,0 +1,149 @@
+/**
+ * useIconCache Hook
+ *
+ * Hook for managing app icon caching
+ * Handles preloading, cache initialization, and background processing
+ */
+
+import { useEffect, useState, useCallback } from "react";
+import { iconCacheService } from "../services/iconCacheService";
+import { batchConvertToGrayscale } from "../utils/iconUtils";
+import type { InstalledApp } from "../native-android/nativeModules";
+
+interface UseIconCacheResult {
+  isInitialized: boolean;
+  cacheStats: {
+    totalCached: number;
+    cacheSize: number;
+    oldestEntry: number | null;
+  };
+  preloadIcons: (apps: InstalledApp[]) => Promise<void>;
+  clearCache: () => Promise<void>;
+  isPreloading: boolean;
+}
+
+export function useIconCache(): UseIconCacheResult {
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(false);
+  const [cacheStats, setCacheStats] = useState({
+    totalCached: 0,
+    cacheSize: 0,
+    oldestEntry: null as number | null,
+  });
+
+  useEffect(() => {
+    initializeCache();
+  }, []);
+
+  const initializeCache = async () => {
+    try {
+      await iconCacheService.initialize();
+      updateStats();
+      setIsInitialized(true);
+      console.log("[useIconCache] Cache initialized");
+    } catch (error) {
+      console.error("[useIconCache] Failed to initialize cache:", error);
+      setIsInitialized(true); // Continue anyway
+    }
+  };
+
+  const updateStats = useCallback(() => {
+    const stats = iconCacheService.getStats();
+    setCacheStats(stats);
+  }, []);
+
+  /**
+   * Preload icons for apps that aren't cached yet
+   * Runs in background without blocking UI
+   */
+  const preloadIcons = useCallback(
+    async (apps: InstalledApp[]) => {
+      if (!isInitialized) {
+        console.warn("[useIconCache] Cache not initialized yet");
+        return;
+      }
+
+      try {
+        setIsPreloading(true);
+
+        // Filter apps that need caching
+        const uncachedApps = apps.filter(
+          (app) => app.icon && !iconCacheService.isCached(app.packageName)
+        );
+
+        if (uncachedApps.length === 0) {
+          console.log("[useIconCache] All icons already cached");
+          updateStats();
+          return;
+        }
+
+        console.log(
+          `[useIconCache] Preloading ${uncachedApps.length} icons...`
+        );
+
+        // Process in batches to avoid memory issues
+        const BATCH_SIZE = 20;
+        const batches = [];
+        for (let i = 0; i < uncachedApps.length; i += BATCH_SIZE) {
+          batches.push(uncachedApps.slice(i, i + BATCH_SIZE));
+        }
+
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          const iconsToProcess = batch
+            .filter((app) => app.icon)
+            .map((app) => ({
+              packageName: app.packageName,
+              appName: app.appName,
+              icon: app.icon!,
+            }));
+
+          // Process batch
+          const processed = await batchConvertToGrayscale(iconsToProcess);
+
+          // Cache batch
+          await iconCacheService.cacheIcons(processed);
+
+          console.log(
+            `[useIconCache] Processed batch ${i + 1}/${batches.length}`
+          );
+
+          // Small delay to avoid blocking UI
+          if (i < batches.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        }
+
+        updateStats();
+        console.log(
+          `[useIconCache] Preloading complete. Total cached: ${
+            iconCacheService.getStats().totalCached
+          }`
+        );
+      } catch (error) {
+        console.error("[useIconCache] Failed to preload icons:", error);
+      } finally {
+        setIsPreloading(false);
+      }
+    },
+    [isInitialized, updateStats]
+  );
+
+  const clearCache = useCallback(async () => {
+    try {
+      await iconCacheService.clearCache();
+      updateStats();
+      console.log("[useIconCache] Cache cleared");
+    } catch (error) {
+      console.error("[useIconCache] Failed to clear cache:", error);
+    }
+  }, [updateStats]);
+
+  return {
+    isInitialized,
+    cacheStats,
+    preloadIcons,
+    clearCache,
+    isPreloading,
+  };
+}

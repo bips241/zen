@@ -1,6 +1,6 @@
 /**
  * Pomodoro Screen - 25/5 minute work/break cycles
- * Translated from figma-dump for React Native
+ * Redesigned with minimal emoji-focused UI and AOD support
  */
 
 import React, { useState, useEffect, useRef } from "react";
@@ -11,7 +11,10 @@ import {
   Dimensions,
   Animated,
   Easing,
+  Platform,
 } from "react-native";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { Text } from "../components/atoms";
 import { useStore } from "../store";
 import { colors } from "../theme";
@@ -57,7 +60,23 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Keep screen awake when timer is running
+    return () => {
+      deactivateKeepAwake();
+    };
   }, []);
+
+  useEffect(() => {
+    // Manage wake lock based on running state
+    if (isRunning) {
+      activateKeepAwakeAsync().catch((err) =>
+        console.error("Failed to activate wake lock:", err),
+      );
+    } else {
+      deactivateKeepAwake();
+    }
+  }, [isRunning]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -140,14 +159,42 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
     outputRange: ["0deg", "360deg"],
   });
 
+  // Get icon for current phase
+  const getPhaseIcon = () => {
+    if (phase === "work") {
+      return (
+        <MaterialCommunityIcons
+          name="brain"
+          size={SCREEN_HEIGHT * 0.15}
+          color="#FFFFFF"
+        />
+      );
+    }
+    if (phase === "longBreak") {
+      return (
+        <Ionicons name="cafe" size={SCREEN_HEIGHT * 0.15} color="#FFFFFF" />
+      );
+    }
+    return (
+      <Ionicons
+        name="cafe-outline"
+        size={SCREEN_HEIGHT * 0.15}
+        color="#FFFFFF"
+      />
+    );
+  };
+
+  const getPhaseTitle = () => {
+    if (phase === "work") return "Focus Time";
+    if (phase === "longBreak") return "Long Break";
+    return "Short Break";
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Minimal Header */}
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-        <View>
-          <Text style={styles.headerTitle}>Pomodoro</Text>
-          <Text style={styles.headerSubtitle}>Cycle {cycle}</Text>
-        </View>
+        <Text style={styles.cycleText}>Cycle {cycle}</Text>
         <TouchableOpacity
           style={styles.closeButton}
           onPress={() => navigation.goBack()}
@@ -157,50 +204,49 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Main Content */}
+      {/* Main Content - Emoji Focused */}
       <View style={styles.content}>
-        {/* Phase Indicator */}
+        {/* Giant Icon Display */}
         <Animated.View
           style={[
-            styles.phaseIndicator,
+            styles.emojiContainer,
             { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
           ]}
         >
-          <Text style={styles.phaseIcon}>{phase === "work" ? "🧠" : "☕"}</Text>
-          <View style={styles.phaseText}>
-            <Text style={styles.phaseTitle}>
-              {phase === "work"
-                ? "Focus Time"
-                : phase === "longBreak"
-                ? "Long Break"
-                : "Short Break"}
-            </Text>
-            <Text style={styles.phaseSubtitle}>
-              {phase === "work"
-                ? "Stay focused on your task"
-                : "Take a rest, you deserve it"}
-            </Text>
-          </View>
+          {getPhaseIcon()}
         </Animated.View>
 
-        {/* Circular Timer */}
+        {/* Phase Title */}
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <Text style={styles.phaseTitle}>{getPhaseTitle()}</Text>
+        </Animated.View>
+
+        {/* Timer Display */}
         <Animated.View
           style={[
-            styles.timerContainer,
+            styles.timerDisplay,
             { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
           ]}
         >
-          {/* Progress Circle */}
-          <View style={styles.progressCircle}>
+          <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+        </Animated.View>
+
+        {/* Progress Bar (Simple Line) */}
+        <Animated.View
+          style={[styles.progressBarContainer, { opacity: fadeAnim }]}
+        >
+          <View style={styles.progressBarTrack}>
             <Animated.View
               style={[
-                styles.progressRing,
-                { transform: [{ rotate: progressRotation }] },
+                styles.progressBarFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
               ]}
             />
-            <View style={styles.timerInner}>
-              <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-            </View>
           </View>
         </Animated.View>
 
@@ -234,7 +280,20 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
             onPress={handlePlayPause}
             activeOpacity={0.7}
           >
-            <Text style={styles.playIcon}>{isRunning ? "⏸" : "▶"}</Text>
+            {isRunning ? (
+              <Ionicons
+                name="pause"
+                size={SCREEN_WIDTH * 0.08}
+                color="#000000"
+              />
+            ) : (
+              <Ionicons
+                name="play"
+                size={SCREEN_WIDTH * 0.08}
+                color="#000000"
+                style={{ marginLeft: SCREEN_WIDTH * 0.005 }}
+              />
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -275,199 +334,176 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: SCREEN_WIDTH * 0.06,
+    paddingTop: SCREEN_HEIGHT * 0.06,
+    paddingBottom: SCREEN_HEIGHT * 0.02,
   },
 
-  headerTitle: {
+  cycleText: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 24,
-    color: "#FFFFFF",
-  },
-
-  headerSubtitle: {
-    fontFamily: "ZenDots-Regular",
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.5)",
-    marginTop: 4,
+    fontSize: SCREEN_WIDTH * 0.03,
+    color: "rgba(255, 255, 255, 0.4)",
+    textTransform: "uppercase",
+    letterSpacing: 2,
   },
 
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    width: SCREEN_WIDTH * 0.1,
+    height: SCREEN_WIDTH * 0.1,
+    borderRadius: SCREEN_WIDTH * 0.05,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     alignItems: "center",
     justifyContent: "center",
   },
 
   closeIcon: {
-    fontSize: 20,
-    color: "#FFFFFF",
+    fontSize: SCREEN_WIDTH * 0.045,
+    color: "rgba(255, 255, 255, 0.6)",
   },
 
   content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: SCREEN_WIDTH * 0.08,
   },
 
-  phaseIndicator: {
-    flexDirection: "row",
+  emojiContainer: {
+    marginBottom: SCREEN_HEIGHT * 0.03,
+    height: SCREEN_HEIGHT * 0.2,
+    justifyContent: "center",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 40,
-  },
-
-  phaseIcon: {
-    fontSize: 32,
-  },
-
-  phaseText: {
-    flex: 1,
   },
 
   phaseTitle: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 20,
-    color: "#FFFFFF",
-    marginBottom: 4,
+    fontSize: SCREEN_WIDTH * 0.04,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginBottom: SCREEN_HEIGHT * 0.025,
+    textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 3,
   },
 
-  phaseSubtitle: {
-    fontFamily: "ZenDots-Regular",
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.5)",
-  },
-
-  timerContainer: {
-    marginBottom: 40,
-  },
-
-  progressCircle: {
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-
-  progressRing: {
-    position: "absolute",
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    borderWidth: 8,
-    borderColor: "#FFFFFF",
-    borderTopColor: "transparent",
-    borderRightColor: "transparent",
-  },
-
-  timerInner: {
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: "#000000",
-    alignItems: "center",
-    justifyContent: "center",
+  timerDisplay: {
+    marginBottom: SCREEN_HEIGHT * 0.03,
+    height: SCREEN_HEIGHT * 0.1,
   },
 
   timerText: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 48,
+    fontSize: SCREEN_WIDTH * 0.15,
     color: "#FFFFFF",
+    textAlign: "center",
+    letterSpacing: 4,
+    lineHeight: SCREEN_HEIGHT * 0.1,
+  },
+
+  progressBarContainer: {
+    width: "100%",
+    maxWidth: SCREEN_WIDTH * 0.85,
+    marginBottom: SCREEN_HEIGHT * 0.04,
+  },
+
+  progressBarTrack: {
+    height: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: colors.accent,
+    borderRadius: 2,
   },
 
   pomodoroDotsContainer: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 40,
+    gap: SCREEN_WIDTH * 0.03,
+    marginBottom: SCREEN_HEIGHT * 0.05,
   },
 
   pomodoroDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    width: SCREEN_WIDTH * 0.02,
+    height: SCREEN_WIDTH * 0.02,
+    borderRadius: SCREEN_WIDTH * 0.01,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
 
   pomodoroDotActive: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.accent,
+    width: SCREEN_WIDTH * 0.025,
+    height: SCREEN_WIDTH * 0.025,
+    borderRadius: SCREEN_WIDTH * 0.0125,
   },
 
   controls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
-    marginBottom: 40,
+    gap: SCREEN_WIDTH * 0.05,
+    marginBottom: SCREEN_HEIGHT * 0.05,
   },
 
   controlButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    width: SCREEN_WIDTH * 0.14,
+    height: SCREEN_WIDTH * 0.14,
+    borderRadius: SCREEN_WIDTH * 0.07,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
 
   controlIcon: {
-    fontSize: 24,
-    color: "#FFFFFF",
+    fontSize: SCREEN_WIDTH * 0.06,
+    color: "rgba(255, 255, 255, 0.7)",
   },
 
   playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#FFFFFF",
+    width: SCREEN_WIDTH * 0.18,
+    height: SCREEN_WIDTH * 0.18,
+    borderRadius: SCREEN_WIDTH * 0.09,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#FFFFFF",
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
     elevation: 10,
-  },
-
-  playIcon: {
-    fontSize: 32,
-    color: "#000000",
   },
 
   statsContainer: {
     flexDirection: "row",
-    gap: 20,
+    gap: SCREEN_WIDTH * 0.04,
+    width: "100%",
+    maxWidth: SCREEN_WIDTH * 0.85,
   },
 
   statBox: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 20,
+    padding: SCREEN_WIDTH * 0.04,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.05)",
     alignItems: "center",
   },
 
   statValue: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 20,
+    fontSize: SCREEN_WIDTH * 0.045,
     color: "#FFFFFF",
-    marginBottom: 8,
+    marginBottom: 4,
   },
 
   statLabel: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: SCREEN_WIDTH * 0.022,
+    color: "rgba(255, 255, 255, 0.4)",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
 });
