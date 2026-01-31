@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSystemInsets } from "@/hooks/useSystemInsets";
 import FocusTimerScreen from "@/screens/FocusTimerScreen";
@@ -64,31 +65,40 @@ export default function TabNavigator() {
           isKeyboardVisible || !shouldShowTabBar
             ? { display: "none" }
             : {
-                position: "relative",
+                position: "absolute",
                 bottom: 0,
                 left: safeNavBarLeft,
                 right: safeNavBarRight,
-                backgroundColor: "rgba(0, 0, 0, 0.98)",
-                borderTopColor: "rgba(255, 255, 255, 0.1)",
-                borderTopWidth: 1,
+                backgroundColor: "transparent",
+                borderTopColor: "transparent",
+                borderTopWidth: 0,
                 height: totalHeight,
                 paddingBottom: safeNavBarBottom,
                 paddingLeft: safeNavBarLeft,
                 paddingRight: safeNavBarRight,
                 paddingTop: 8,
-                elevation: 8,
+                elevation: 0,
                 zIndex: 1000,
               },
         tabBarActiveTintColor: "#FFFFFF",
-        tabBarInactiveTintColor: "rgba(255, 255, 255, 0.5)",
+        tabBarInactiveTintColor: "rgba(255, 255, 255, 0.4)",
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "400",
+          fontWeight: "500",
           marginBottom: 4,
         },
         tabBarIconStyle: {
           marginTop: 4,
         },
+        tabBarBackground: () => (
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.75)",
+              backdropFilter: "blur(20px)",
+            }}
+          />
+        ),
       }}
     >
       <Tab.Screen

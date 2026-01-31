@@ -32,10 +32,9 @@ import FrictionSettings from "../screens/FrictionSettings";
 import AppSelectionScreen from "../screens/AppSelectionScreen";
 import FrictionOverlay from "../screens/FrictionOverlay";
 import AmbientMusicScreen from "../screens/AmbientMusicScreen";
+import ThemeStoreScreen from "../screens/ThemeStoreScreen";
 import { colors } from "../theme";
-import TabNavigator from "@/components/navbar";
 
-const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 export default function RootNavigator() {
@@ -47,9 +46,10 @@ export default function RootNavigator() {
         cardStyle: { backgroundColor: "#000000" },
       }}
     >
-      <Stack.Screen name="Main" component={TabNavigator} />
+      <Stack.Screen name="Home" component={HomeShell} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Stats" component={StatsScreen} />
       <Stack.Screen name="AppDrawer" component={AppDrawerScreen} />
       <Stack.Screen name="Tratak" component={TratakScreen} />
       <Stack.Screen name="Pomodoro" component={PomodoroScreen} />
@@ -68,6 +68,7 @@ export default function RootNavigator() {
       <Stack.Screen name="FrictionSettings" component={FrictionSettings} />
       <Stack.Screen name="AppSelection" component={AppSelectionScreen} />
       <Stack.Screen name="AmbientMusic" component={AmbientMusicScreen} />
+      <Stack.Screen name="ThemeStore" component={ThemeStoreScreen} />
       <Stack.Screen name="FrictionOverlay" component={FrictionOverlay} />
     </Stack.Navigator>
   );

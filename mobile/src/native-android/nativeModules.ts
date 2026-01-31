@@ -47,6 +47,8 @@ interface ZenLauncherModule {
   launchApp(packageName: string): Promise<AppLaunchResult>;
   isAppRunning(packageName: string): Promise<AppRunningInfo>;
   openHomeSettings(): Promise<LauncherResult>;
+  startScreenListener(): Promise<boolean>;
+  stopScreenListener(): Promise<boolean>;
 }
 
 // ============================================================================
@@ -105,7 +107,7 @@ interface UsageStatsModule {
   getAppUsageToday(): Promise<AppUsageStats[]>;
   getAppUsageForRange(
     startTimeMs: number,
-    endTimeMs: number
+    endTimeMs: number,
   ): Promise<AppUsageStats[]>;
   getMostUsedApps(limit: number): Promise<AppUsageStats[]>;
   getScreenTimeToday(): Promise<ScreenTimeStats>;
@@ -136,10 +138,10 @@ interface ZenNotificationModule {
   enableNotificationBlocking(): Promise<NotificationResult>;
   disableNotificationBlocking(): Promise<NotificationResult>;
   blockNotificationsFromApps(
-    packageNames: string[]
+    packageNames: string[],
   ): Promise<NotificationResult>;
   unblockNotificationsFromApps(
-    packageNames: string[]
+    packageNames: string[],
   ): Promise<NotificationResult>;
   clearBlockedNotifications(): Promise<NotificationResult>;
   hasNotificationListenerPermission(): Promise<PermissionCheckResult>;
@@ -205,11 +207,11 @@ interface ZenOverlayModule {
   isFrictionEnabled(): Promise<{ enabled: boolean }>;
   configureFriction(
     delaySeconds: number,
-    blockedApps: string[]
+    blockedApps: string[],
   ): Promise<FrictionConfigResult>;
   setUsageLimit(
     packageName: string,
-    limitMinutes: number
+    limitMinutes: number,
   ): Promise<UsageLimitResult>;
   getCurrentUsage(packageName: string): Promise<UsageQueryResult>;
   resetTodayUsage(): Promise<OverlayResult>;
@@ -228,7 +230,7 @@ interface ZenOverlayModule {
 interface FocusEnforcementModule {
   startEnforcement(
     blockedApps: string[],
-    goalMinutes: number
+    goalMinutes: number,
   ): Promise<boolean>;
   stopEnforcement(): Promise<boolean>;
   isEnforcementActive(): Promise<boolean>;
@@ -250,7 +252,7 @@ interface SuppressedNotification {
 interface FocusNotificationModule {
   setFocusMode(
     enabled: boolean,
-    suppressedPackages: string[]
+    suppressedPackages: string[],
   ): Promise<boolean>;
   isFocusModeActive(): Promise<boolean>;
   getSuppressedNotifications(): Promise<SuppressedNotification[]>;
@@ -340,7 +342,7 @@ interface GestureModule {
   initialize(): Promise<boolean>;
   configure(
     swipeThresholdPx: number,
-    velocityThresholdPx: number
+    velocityThresholdPx: number,
   ): Promise<boolean>;
   enableGestures(): Promise<boolean>;
   disableGestures(): Promise<boolean>;

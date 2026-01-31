@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,8 +10,12 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../store";
+import LottieView from "lottie-react-native";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// Create animated version of LottieView
+const AnimatedLottieView = Animated.createAnimatedComponent(LottieView);
 
 interface Tree {
   id: string;
@@ -23,9 +27,11 @@ interface Tree {
 
 export default function ForestFocusScreen() {
   const navigation = useNavigation();
+  const [selectedMinutes, setSelectedMinutes] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [initialTime] = useState(25 * 60);
+  const [initialTime, setInitialTime] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [trees, setTrees] = useState<Tree[]>([]);
   const [currentTreeGrowth, setCurrentTreeGrowth] = useState(0);
 
@@ -33,6 +39,10 @@ export default function ForestFocusScreen() {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const growthAnim = useRef(new Animated.Value(0)).current;
+  const lottieProgressAnim = useRef(new Animated.Value(0)).current;
+
+  // Lottie animation ref
+  const lottieRef = useRef<LottieView>(null);
 
   useEffect(() => {
     // Entrance animation
@@ -50,50 +60,9 @@ export default function ForestFocusScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, scaleAnim]);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleSessionComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft]);
-
-  useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      const progress = ((initialTime - timeLeft) / initialTime) * 100;
-      setCurrentTreeGrowth(progress);
-
-      // Animate tree growth
-      Animated.timing(growthAnim, {
-        toValue: progress / 100,
-        duration: 500,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isRunning, timeLeft, initialTime]);
-
-  useEffect(() => {
-    const progress = ((initialTime - timeLeft) / initialTime) * 100;
-    Animated.timing(progressAnim, {
-      toValue: progress,
-      duration: 500,
-      easing: Easing.linear,
-      useNativeDriver: false,
-    }).start();
-  }, [timeLeft, initialTime]);
-
-  const handleSessionComplete = async () => {
+  const handleSessionComplete = useCallback(async () => {
     setIsRunning(false);
 
     // Update global productivity tracker
@@ -117,10 +86,59 @@ export default function ForestFocusScreen() {
       type: treeType,
     };
 
-    setTrees([...trees, newTree]);
+    setTrees((prevTrees) => [...prevTrees, newTree]);
     setCurrentTreeGrowth(0);
     growthAnim.setValue(0);
-  };
+  }, [initialTime, growthAnim]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleSessionComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft, handleSessionComplete]);
+
+  useEffect(() => {
+    if (isRunning && timeLeft > 0) {
+      const progress = ((initialTime - timeLeft) / initialTime) * 100;
+      setCurrentTreeGrowth(progress);
+
+      // Animate growth scale
+      Animated.timing(growthAnim, {
+        toValue: progress / 100,
+        duration: 500,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+
+      // Animate Lottie progress
+      Animated.timing(lottieProgressAnim, {
+        toValue: progress / 100,
+        duration: 500,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [isRunning, timeLeft, initialTime, growthAnim, lottieProgressAnim]);
+
+  useEffect(() => {
+    const progress = ((initialTime - timeLeft) / initialTime) * 100;
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 500,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+  }, [timeLeft, initialTime]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -131,45 +149,39 @@ export default function ForestFocusScreen() {
   };
 
   const handlePlayPause = () => {
-    setIsRunning(!isRunning);
+    if (!hasStarted) {
+      // First time starting - set the time
+      const newTime = selectedMinutes * 60;
+      setTimeLeft(newTime);
+      setInitialTime(newTime);
+      setHasStarted(true);
+      setIsRunning(true);
+    } else {
+      setIsRunning(!isRunning);
+    }
   };
 
   const handleReset = () => {
     setIsRunning(false);
-    setTimeLeft(initialTime);
+    setHasStarted(false);
+    setTimeLeft(selectedMinutes * 60);
+    setInitialTime(selectedMinutes * 60);
     setCurrentTreeGrowth(0);
     growthAnim.setValue(0);
+    lottieProgressAnim.setValue(0);
+
+    // Reset Lottie animation
+    if (lottieRef.current) {
+      lottieRef.current.reset();
+    }
   };
+
+  const timeOptions = [5, 10, 15, 25, 30, 45, 60, 90];
 
   const progressRotation = progressAnim.interpolate({
     inputRange: [0, 100],
     outputRange: ["0deg", "360deg"],
   });
-
-  // Plant growth stages based on growth percentage
-  const getPlantStage = (growth: number) => {
-    if (growth < 20) return "seed"; // 🌱
-    if (growth < 40) return "sprout"; // 🌿
-    if (growth < 60) return "sapling"; // 🌳
-    if (growth < 80) return "tree"; // 🌲
-    return "full-tree"; // 🌴
-  };
-
-  const getPlantEmoji = (growth: number) => {
-    const stage = getPlantStage(growth);
-    switch (stage) {
-      case "seed":
-        return "🌱";
-      case "sprout":
-        return "🌿";
-      case "sapling":
-        return "🌳";
-      case "tree":
-        return "🌲";
-      case "full-tree":
-        return "🌴";
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -187,108 +199,177 @@ export default function ForestFocusScreen() {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Forest Canvas */}
-      <View style={styles.forestCanvas}>
-        <Animated.View style={[styles.forestContent, { opacity: fadeAnim }]}>
-          {/* Ground line */}
-          <View style={styles.groundLine} />
-
-          {/* Existing trees */}
-          {trees.map((tree, index) => (
-            <Animated.View
-              key={tree.id}
-              style={[
-                styles.treeContainer,
-                {
-                  left: `${tree.x}%`,
-                  bottom: `${tree.y}%`,
-                  transform: [{ scale: tree.size }],
-                  opacity: fadeAnim,
-                },
-              ]}
-            >
-              <Text style={styles.treeEmoji}>🌲</Text>
-            </Animated.View>
-          ))}
-
-          {/* Growing tree (current session) */}
-          {isRunning && currentTreeGrowth > 0 && (
-            <Animated.View
-              style={[
-                styles.growingTreeContainer,
-                {
-                  transform: [{ scale: growthAnim }],
-                  opacity: growthAnim,
-                },
-              ]}
-            >
-              <Text style={styles.growingTreeEmoji}>
-                {getPlantEmoji(currentTreeGrowth)}
-              </Text>
-              <Text style={styles.growthPercentage}>
-                {Math.round(currentTreeGrowth)}%
-              </Text>
-            </Animated.View>
-          )}
-
-          {/* Empty state */}
-          {trees.length === 0 && !isRunning && (
-            <Animated.View
-              style={[
-                styles.emptyState,
-                {
-                  opacity: fadeAnim,
-                },
-              ]}
-            >
-              <Text style={styles.emptyText}>Your forest is empty</Text>
-              <Text style={styles.emptySubtext}>
-                Complete focus sessions to grow trees
-              </Text>
-            </Animated.View>
-          )}
+      {/* Timer Display (when started) */}
+      {hasStarted && (
+        <Animated.View style={[styles.timerHeader, { opacity: fadeAnim }]}>
+          <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+          <Text style={styles.timerSubtext}>
+            {isRunning ? "Growing..." : "Paused"}
+          </Text>
         </Animated.View>
+      )}
 
-        {/* Timer Overlay */}
-        <Animated.View
-          style={[
-            styles.timerOverlay,
-            {
-              transform: [{ scale: scaleAnim }],
-              opacity: scaleAnim,
-            },
-          ]}
-        >
-          <View style={styles.timerCircle}>
-            {/* Progress Ring */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBackground} />
-              <Animated.View
+      {/* Time Selection (before start) */}
+      {!hasStarted && (
+        <Animated.View style={[styles.timeSelection, { opacity: fadeAnim }]}>
+          <Text style={styles.selectionTitle}>Choose Focus Time</Text>
+          <View style={styles.timeOptions}>
+            {timeOptions.map((minutes) => (
+              <TouchableOpacity
+                key={minutes}
+                onPress={() => setSelectedMinutes(minutes)}
                 style={[
-                  styles.progressRing,
-                  { transform: [{ rotate: progressRotation }] },
+                  styles.timeOption,
+                  selectedMinutes === minutes && styles.timeOptionActive,
                 ]}
-              />
-            </View>
-
-            {/* Timer Display */}
-            <View style={styles.timerDisplay}>
-              <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-              <Text style={styles.timerLabel}>
-                {isRunning ? "Stay focused" : "Ready to grow"}
-              </Text>
-            </View>
+              >
+                <Text
+                  style={[
+                    styles.timeOptionText,
+                    selectedMinutes === minutes && styles.timeOptionTextActive,
+                  ]}
+                >
+                  {minutes}
+                </Text>
+                <Text
+                  style={[
+                    styles.timeOptionLabel,
+                    selectedMinutes === minutes && styles.timeOptionLabelActive,
+                  ]}
+                >
+                  min
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </Animated.View>
+      )}
+
+      {/* Main Content Area - Forest Canvas */}
+      <View style={styles.mainContent}>
+        <View style={styles.forestCanvas}>
+          <Animated.View style={[styles.forestContent, { opacity: fadeAnim }]}>
+            {/* Ground line */}
+            {/* <View style={styles.groundLine} /> */}
+
+            {/* Existing trees */}
+            {trees.map((tree) => (
+              <Animated.View
+                key={tree.id}
+                style={[
+                  styles.treeContainer,
+                  {
+                    left: `${tree.x}%`,
+                    bottom: `${tree.y}%`,
+                    transform: [{ scale: tree.size }],
+                    opacity: fadeAnim,
+                  },
+                ]}
+              >
+                <LottieView
+                  source={require("../assets/plant.lottie")}
+                  style={styles.completedTreeAnimation}
+                  autoPlay={false}
+                  loop={false}
+                  progress={1}
+                />
+              </Animated.View>
+            ))}
+
+            {/* Growing tree (current session) */}
+            {hasStarted && (
+              <Animated.View
+                style={[
+                  styles.growingTreeContainer,
+                  {
+                    transform: [
+                      {
+                        scale: growthAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.5, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <AnimatedLottieView
+                  ref={lottieRef}
+                  source={require("../assets/plant.lottie")}
+                  style={styles.lottieAnimation}
+                  autoPlay={false}
+                  loop={false}
+                  speed={1}
+                  progress={lottieProgressAnim}
+                />
+                <Text style={styles.growthPercentage}>
+                  {Math.round(currentTreeGrowth)}%
+                </Text>
+              </Animated.View>
+            )}
+
+            {/* Empty state */}
+            {trees.length === 0 && !hasStarted && (
+              <Animated.View
+                style={[
+                  styles.emptyState,
+                  {
+                    opacity: fadeAnim,
+                  },
+                ]}
+              >
+                <Text style={styles.emptyText}>Your forest awaits</Text>
+                <Text style={styles.emptySubtext}>
+                  Select a time and start growing
+                </Text>
+              </Animated.View>
+            )}
+          </Animated.View>
+        </View>
+
+        {/* Info/Warning Messages */}
+        <View style={styles.messageContainer}>
+          {!hasStarted && (
+            <Animated.View style={{ opacity: fadeAnim }}>
+              <View style={styles.infoCard}>
+                <Text style={styles.infoText}>
+                  🌱 Watch your plant grow from seed to tree
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
+          {hasStarted && isRunning && (
+            <Animated.View style={{ opacity: fadeAnim }}>
+              <View style={styles.warningCard}>
+                <Text style={styles.warningText}>
+                  ⚠️ If you exit now, your tree will die
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+        </View>
       </View>
 
-      {/* Controls */}
-      <Animated.View style={[styles.controls, { opacity: fadeAnim }]}>
+      {/* Bottom Controls */}
+      <Animated.View style={[styles.controlsContainer, { opacity: fadeAnim }]}>
         <View style={styles.controlButtons}>
-          <TouchableOpacity onPress={handleReset} style={styles.controlButton}>
-            <Text style={styles.controlIcon}>⟲</Text>
-          </TouchableOpacity>
+          {/* Left button - visible only when started */}
+          <View style={styles.controlButtonWrapper}>
+            {hasStarted ? (
+              <TouchableOpacity
+                onPress={handleReset}
+                style={styles.controlButton}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.controlIcon}>⟲</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.controlButtonPlaceholder} />
+            )}
+          </View>
 
+          {/* Center - Play/Pause button */}
           <TouchableOpacity
             onPress={handlePlayPause}
             style={styles.playButton}
@@ -296,46 +377,45 @@ export default function ForestFocusScreen() {
           >
             <Text style={styles.playIcon}>{isRunning ? "❚❚" : "▶"}</Text>
           </TouchableOpacity>
+
+          {/* Right button - visible only when started */}
+          <View style={styles.controlButtonWrapper}>
+            {hasStarted ? (
+              <TouchableOpacity
+                onPress={handleReset}
+                style={styles.controlButton}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.controlIcon}>✕</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.controlButtonPlaceholder} />
+            )}
+          </View>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{trees.length}</Text>
-            <Text style={styles.statLabel}>Trees</Text>
+        {/* Stats Card */}
+        {hasStarted && (
+          <View style={styles.statsCard}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{trees.length}</Text>
+              <Text style={styles.statLabel}>Trees</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {trees.filter((t) => t.type === "large").length}
+              </Text>
+              <Text style={styles.statLabel}>Deep Focus</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{trees.length * 25}</Text>
+              <Text style={styles.statLabel}>Total Min</Text>
+            </View>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {trees.filter((t) => t.type === "large").length}
-            </Text>
-            <Text style={styles.statLabel}>Deep Focus</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{trees.length * 25}</Text>
-            <Text style={styles.statLabel}>Total Min</Text>
-          </View>
-        </View>
+        )}
       </Animated.View>
-
-      {/* Warning message */}
-      {isRunning && (
-        <Animated.View
-          style={[
-            styles.warningContainer,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
-          <View style={styles.warningCard}>
-            <Text style={styles.warningText}>
-              ⚠️ If you exit now, your tree will die
-            </Text>
-          </View>
-        </Animated.View>
-      )}
     </View>
   );
 }
@@ -347,7 +427,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingTop: SCREEN_HEIGHT > 700 ? 48 : 40,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
@@ -373,6 +453,75 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     lineHeight: 32,
   },
+  timerHeader: {
+    paddingVertical: 16,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+  },
+  timerText: {
+    fontSize: 48,
+    color: "#FFFFFF",
+    fontWeight: "300",
+  },
+  timerSubtext: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.4)",
+    marginTop: 4,
+  },
+  timeSelection: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+  },
+  selectionTitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  timeOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "center",
+  },
+  timeOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    minWidth: 70,
+    alignItems: "center",
+  },
+  timeOptionActive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
+  },
+  timeOptionText: {
+    fontSize: 20,
+    color: "#FFFFFF",
+    fontWeight: "400",
+  },
+  timeOptionTextActive: {
+    color: "#000000",
+    fontWeight: "500",
+  },
+  timeOptionLabel: {
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.5)",
+    marginTop: 2,
+  },
+  timeOptionLabelActive: {
+    color: "rgba(0, 0, 0, 0.6)",
+  },
+  mainContent: {
+    flex: 1,
+    position: "relative",
+  },
   forestCanvas: {
     flex: 1,
     position: "relative",
@@ -383,7 +532,7 @@ const styles = StyleSheet.create({
   },
   groundLine: {
     position: "absolute",
-    bottom: 150,
+    bottom: "20%",
     left: 0,
     right: 0,
     height: 1,
@@ -398,21 +547,29 @@ const styles = StyleSheet.create({
   growingTreeContainer: {
     position: "absolute",
     left: "50%",
-    bottom: 150,
-    marginLeft: -40,
+    bottom: "6%",
+    marginLeft: -225,
     alignItems: "center",
+    width: 450,
+    height: 450,
   },
-  growingTreeEmoji: {
-    fontSize: 80,
+  lottieAnimation: {
+    width: 450,
+    height: 450,
+  },
+  completedTreeAnimation: {
+    width: 80,
+    height: 80,
   },
   growthPercentage: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
     marginTop: 8,
+    fontWeight: "500",
   },
   emptyState: {
     position: "absolute",
-    top: "40%",
+    top: "35%",
     left: 0,
     right: 0,
     alignItems: "center",
@@ -427,69 +584,65 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255, 255, 255, 0.3)",
   },
-  timerOverlay: {
+  messageContainer: {
     position: "absolute",
-    top: "35%",
-    left: "50%",
-    marginLeft: -96,
+    bottom: SCREEN_HEIGHT > 700 ? 24 : 16,
+    left: 24,
+    right: 24,
   },
-  timerCircle: {
-    width: 192,
-    height: 192,
-    justifyContent: "center",
+  infoCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 12,
+    padding: 16,
     alignItems: "center",
   },
-  progressContainer: {
-    position: "absolute",
-    width: 176,
-    height: 176,
+  infoText: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
   },
-  progressBackground: {
-    position: "absolute",
-    width: 176,
-    height: 176,
-    borderRadius: 88,
-    borderWidth: 8,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  progressRing: {
-    position: "absolute",
-    width: 176,
-    height: 176,
-    borderRadius: 88,
-    borderWidth: 8,
-    borderColor: "transparent",
-    borderTopColor: "#FFFFFF",
-    borderRightColor: "#FFFFFF",
-  },
-  timerDisplay: {
+  warningCard: {
+    backgroundColor: "rgba(255, 170, 0, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 170, 0, 0.3)",
+    borderRadius: 12,
+    padding: 16,
     alignItems: "center",
   },
-  timerText: {
-    fontSize: 36,
-    color: "#FFFFFF",
-    fontWeight: "300",
-    marginBottom: 8,
+  warningText: {
+    fontSize: 13,
+    color: "rgba(255, 170, 0, 0.9)",
+    textAlign: "center",
   },
-  timerLabel: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.4)",
-  },
-  controls: {
+  controlsContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: SCREEN_HEIGHT > 700 ? 32 : 20,
+    paddingTop: 16,
+    backgroundColor: "transparent",
   },
   controlButtons: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
+    justifyContent: "space-between",
     marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  controlButtonWrapper: {
+    width: 64,
+    height: 64,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  controlButtonPlaceholder: {
+    width: 64,
+    height: 64,
   },
   controlButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
@@ -499,25 +652,32 @@ const styles = StyleSheet.create({
   controlIcon: {
     fontSize: 24,
     color: "#FFFFFF",
+    fontWeight: "400",
   },
   playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    elevation: 8,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   playIcon: {
     fontSize: 32,
     color: "#000000",
+    fontWeight: "500",
   },
   statsCard: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
@@ -538,23 +698,5 @@ const styles = StyleSheet.create({
     width: 1,
     height: 48,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  warningContainer: {
-    position: "absolute",
-    top: 100,
-    left: 24,
-    right: 24,
-  },
-  warningCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-  },
-  warningText: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.6)",
   },
 });

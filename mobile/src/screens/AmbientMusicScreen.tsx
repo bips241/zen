@@ -11,75 +11,80 @@ import {
   ScrollView,
   Animated,
   Easing,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "../components/atoms";
 import { colors, spacing } from "../theme";
+import { audioPlayer } from "../services/audioService";
+import { runNetworkDiagnostics } from "../services/networkDiagnostics";
 
 interface AmbientTrack {
   id: string;
   title: string;
   icon: string;
   duration: string;
-  category: "nature" | "white-noise" | "ambient";
+  category: "nature" | "white-noise" | "ambient" | "binaural";
 }
 
-// Sample tracks - will be fetched from server
-const SAMPLE_TRACKS: AmbientTrack[] = [
+const AVAILABLE_TRACKS: AmbientTrack[] = [
+  // Nature Sounds
   {
-    id: "1",
-    title: "Rainfall",
+    id: "rainfall",
+    title: "Rain",
     icon: "rainy",
-    duration: "60:00",
+    duration: "13 min",
     category: "nature",
   },
   {
-    id: "2",
+    id: "ocean_waves",
     title: "Ocean Waves",
     icon: "water",
-    duration: "45:00",
+    duration: "3 min",
     category: "nature",
   },
   {
-    id: "3",
+    id: "forest",
     title: "Forest",
     icon: "leaf",
-    duration: "30:00",
+    duration: "1:40",
     category: "nature",
   },
   {
-    id: "4",
-    title: "Thunder",
+    id: "thunder",
+    title: "Thunderstorm",
     icon: "thunderstorm",
-    duration: "40:00",
+    duration: "1:55",
     category: "nature",
   },
+  // White Noise
   {
-    id: "5",
-    title: "White Noise",
-    icon: "radio",
-    duration: "∞",
-    category: "white-noise",
-  },
-  {
-    id: "6",
-    title: "Brown Noise",
+    id: "brown_noise",
+    title: "Brown/Pink Noise",
     icon: "stats-chart",
-    duration: "∞",
+    duration: "5:45",
     category: "white-noise",
   },
+  // Ambient
   {
-    id: "7",
+    id: "campfire",
     title: "Campfire",
     icon: "flame",
-    duration: "45:00",
+    duration: "4:20",
     category: "ambient",
   },
   {
-    id: "8",
-    title: "Cafe Ambience",
+    id: "cafe",
+    title: "Coffee Shop",
     icon: "cafe",
-    duration: "60:00",
+    duration: "1:15",
+    category: "ambient",
+  },
+  {
+    id: "deep_focus",
+    title: "Deep Sleep",
+    icon: "musical-note",
+    duration: "8:20",
     category: "ambient",
   },
 ];
@@ -93,10 +98,13 @@ interface AmbientMusicScreenProps {
 export default function AmbientMusicScreen({
   navigation,
 }: AmbientMusicScreenProps) {
-  const [tracks, setTracks] = useState<AmbientTrack[]>(SAMPLE_TRACKS);
+  const [tracks, setTracks] = useState<AmbientTrack[]>(AVAILABLE_TRACKS);
   const [currentTrack, setCurrentTrack] = useState<AmbientTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(70);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingTrackId, setLoadingTrackId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -137,29 +145,118 @@ export default function AmbientMusicScreen({
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     } else {
       pulseAnim.setValue(1);
     }
   }, [isPlaying]);
 
-  const handleTrackSelect = (track: AmbientTrack) => {
-    setCurrentTrack(track);
-    setIsPlaying(true);
-    // TODO: Implement actual audio playback
-    console.log("Playing track:", track.title);
+  const handleTrackSelect = async (track: AmbientTrack) => {
+    setIsLoading(true);
+    setLoadingTrackId(track.id);
+    setDownloadProgress(0);
+
+    try {
+      // Load and play new track
+      const loaded = await audioPlayer.loadTrack(track.id, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      if (!loaded) {
+        // Run network diagnostics
+        console.log("Running network diagnostics...");
+        const diagnostics = await runNetworkDiagnostics();
+
+        let errorMessage = "Failed to download or load audio.\n\n";
+
+        if (!diagnostics.internetOk) {
+          errorMessage +=
+            "No internet connection detected.\nPlease check your WiFi or mobile data.";
+        } else if (!diagnostics.r2DnsOk) {
+          errorMessage += "Cannot connect to audio server (DNS issue).\n\n";
+          errorMessage += "Possible solutions:\n";
+          errorMessage += "• Wait a few minutes and try again\n";
+          errorMessage += "• Check your DNS settings\n";
+          errorMessage += "• Try connecting to a different network\n";
+          errorMessage += "• Contact support if issue persists";
+        } else {
+          errorMessage += diagnostics.recommendations.join("\n");
+        }
+
+        Alert.alert("Cannot Play Audio", errorMessage);
+        setIsLoading(false);
+        setLoadingTrackId(null);
+        setDownloadProgress(0);
+        return;
+      }
+
+      const playing = await audioPlayer.play();
+
+      if (playing) {
+        setCurrentTrack(track);
+        setIsPlaying(true);
+      } else {
+        Alert.alert("Error", "Failed to play audio");
+      }
+    } catch (error: any) {
+      console.error("Error playing track:", error);
+      Alert.alert(
+        "Playback Error",
+        error.message ||
+          "Unknown error occurred.\n\nPlease check your internet connection and try again.",
+      );
+    } finally {
+      setIsLoading(false);
+      setLoadingTrackId(null);
+      setDownloadProgress(0);
+    }
   };
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-    // TODO: Implement play/pause
+  const handlePlayPause = async () => {
+    if (!currentTrack) return;
+
+    if (isPlaying) {
+      await audioPlayer.pause();
+      setIsPlaying(false);
+    } else {
+      const playing = await audioPlayer.play();
+      if (playing) {
+        setIsPlaying(true);
+      }
+    }
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
+    await audioPlayer.stop();
     setIsPlaying(false);
     setCurrentTrack(null);
-    // TODO: Stop playback
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      audioPlayer.stop();
+    };
+  }, []);
+
+  // Update volume
+  useEffect(() => {
+    if (currentTrack) {
+      audioPlayer.setVolume(volume);
+    }
+  }, [volume]);
+
+  const handleVolumeChange = (event: any) => {
+    if (!currentTrack) return;
+
+    const { locationX } = event.nativeEvent;
+    const trackWidth = event.nativeEvent.target.measure(
+      (x: number, y: number, width: number) => {
+        const newVolume = Math.round((locationX / width) * 100);
+        setVolume(Math.max(0, Math.min(100, newVolume)));
+      },
+    );
   };
 
   const getCategoryIcon = (category: string) => {
@@ -265,9 +362,31 @@ export default function AmbientMusicScreen({
               size={20}
               color="rgba(255, 255, 255, 0.6)"
             />
-            <View style={styles.volumeTrack}>
+            <TouchableOpacity
+              style={styles.volumeTrack}
+              activeOpacity={0.9}
+              onPress={(e) => {
+                if (!currentTrack) return;
+                const { locationX } = e.nativeEvent;
+                // @ts-ignore - measure exists on native event target
+                e.nativeEvent.target.measure?.(
+                  (
+                    x: number,
+                    y: number,
+                    width: number,
+                    height: number,
+                    pageX: number,
+                    pageY: number,
+                  ) => {
+                    const clickX = locationX;
+                    const newVolume = Math.round((clickX / width) * 100);
+                    setVolume(Math.max(0, Math.min(100, newVolume)));
+                  },
+                );
+              }}
+            >
               <View style={[styles.volumeProgress, { width: `${volume}%` }]} />
-            </View>
+            </TouchableOpacity>
             <Ionicons
               name="volume-high"
               size={20}
@@ -310,6 +429,7 @@ export default function AmbientMusicScreen({
                   ]}
                   onPress={() => handleTrackSelect(track)}
                   activeOpacity={0.8}
+                  disabled={isLoading}
                 >
                   <View style={styles.trackIconContainer}>
                     <Ionicons
@@ -320,6 +440,21 @@ export default function AmbientMusicScreen({
                   </View>
                   <Text style={styles.trackTitle}>{track.title}</Text>
                   <Text style={styles.trackDuration}>{track.duration}</Text>
+
+                  {/* Download progress */}
+                  {isLoading &&
+                    loadingTrackId === track.id &&
+                    downloadProgress > 0 &&
+                    downloadProgress < 1 && (
+                      <View style={styles.downloadProgress}>
+                        <View
+                          style={[
+                            styles.downloadProgressBar,
+                            { width: `${downloadProgress * 100}%` },
+                          ]}
+                        />
+                      </View>
+                    )}
                 </TouchableOpacity>
               ))}
           </View>
@@ -351,6 +486,7 @@ export default function AmbientMusicScreen({
                   ]}
                   onPress={() => handleTrackSelect(track)}
                   activeOpacity={0.8}
+                  disabled={isLoading}
                 >
                   <View style={styles.trackIconContainer}>
                     <Ionicons
@@ -361,6 +497,21 @@ export default function AmbientMusicScreen({
                   </View>
                   <Text style={styles.trackTitle}>{track.title}</Text>
                   <Text style={styles.trackDuration}>{track.duration}</Text>
+
+                  {/* Download progress */}
+                  {isLoading &&
+                    loadingTrackId === track.id &&
+                    downloadProgress > 0 &&
+                    downloadProgress < 1 && (
+                      <View style={styles.downloadProgress}>
+                        <View
+                          style={[
+                            styles.downloadProgressBar,
+                            { width: `${downloadProgress * 100}%` },
+                          ]}
+                        />
+                      </View>
+                    )}
                 </TouchableOpacity>
               ))}
           </View>
@@ -396,6 +547,7 @@ export default function AmbientMusicScreen({
                   ]}
                   onPress={() => handleTrackSelect(track)}
                   activeOpacity={0.8}
+                  disabled={isLoading}
                 >
                   <View style={styles.trackIconContainer}>
                     <Ionicons
@@ -406,6 +558,21 @@ export default function AmbientMusicScreen({
                   </View>
                   <Text style={styles.trackTitle}>{track.title}</Text>
                   <Text style={styles.trackDuration}>{track.duration}</Text>
+
+                  {/* Download progress */}
+                  {isLoading &&
+                    loadingTrackId === track.id &&
+                    downloadProgress > 0 &&
+                    downloadProgress < 1 && (
+                      <View style={styles.downloadProgress}>
+                        <View
+                          style={[
+                            styles.downloadProgressBar,
+                            { width: `${downloadProgress * 100}%` },
+                          ]}
+                        />
+                      </View>
+                    )}
                 </TouchableOpacity>
               ))}
           </View>
@@ -590,6 +757,21 @@ const styles = StyleSheet.create({
   trackDuration: {
     fontSize: 11,
     color: "rgba(255, 255, 255, 0.5)",
+  },
+  downloadProgress: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: "hidden",
+  },
+  downloadProgressBar: {
+    height: "100%",
+    backgroundColor: "#00FF88",
   },
   bottomSpacer: {
     height: spacing.xl,

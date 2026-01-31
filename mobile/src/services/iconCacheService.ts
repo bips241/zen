@@ -20,12 +20,16 @@ interface IconCache {
 
 const CACHE_KEY = "@zen_icon_cache";
 const CACHE_VERSION_KEY = "@zen_icon_cache_version";
-const CURRENT_CACHE_VERSION = "1.0";
-const CACHE_EXPIRY_DAYS = 7; // Icons expire after 7 days
+const CURRENT_CACHE_VERSION = "1.1";
+const CACHE_EXPIRY_DAYS = 30; // Icons expire after 30 days
+const MAX_CACHE_SIZE_MB = 50; // Maximum cache size in MB
+const MAX_MEMORY_ITEMS = 200; // Max items to keep in memory
 
 class IconCacheService {
   private cache: IconCache = {};
+  private memoryCache: Map<string, string> = new Map(); // Fast in-memory lookup
   private isInitialized = false;
+  private pendingWrites: NodeJS.Timeout | null = null;
 
   /**
    * Initialize the cache from AsyncStorage
@@ -49,7 +53,7 @@ class IconCacheService {
       if (cacheData) {
         this.cache = JSON.parse(cacheData);
         console.log(
-          `[IconCache] Loaded ${Object.keys(this.cache).length} cached icons`
+          `[IconCache] Loaded ${Object.keys(this.cache).length} cached icons`,
         );
 
         // Clean expired entries
@@ -65,9 +69,16 @@ class IconCacheService {
   }
 
   /**
-   * Get a cached icon if available
+   * Get a cached icon if available (memory-first, ultra-fast)
    */
   getCachedIcon(packageName: string): string | null {
+    // Check memory cache first (instant)
+    const memoryCached = this.memoryCache.get(packageName);
+    if (memoryCached) {
+      return memoryCached;
+    }
+
+    // Check persistent cache
     const cached = this.cache[packageName];
     if (!cached) return null;
 
@@ -75,23 +86,28 @@ class IconCacheService {
     const expiryTime =
       cached.timestamp + CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
     if (Date.now() > expiryTime) {
-      console.log(`[IconCache] Icon expired for ${packageName}`);
       delete this.cache[packageName];
       return null;
     }
 
+    // Add to memory cache for next access
+    this.addToMemoryCache(packageName, cached.processedIcon);
     return cached.processedIcon;
   }
 
   /**
-   * Cache an icon
+   * Cache an icon (with debounced writes)
    */
   async cacheIcon(
     packageName: string,
     appName: string,
-    processedIcon: string
+    processedIcon: string,
   ): Promise<void> {
     try {
+      // Add to memory cache immediately (instant access)
+      this.addToMemoryCache(packageName, processedIcon);
+
+      // Add to persistent cache
       this.cache[packageName] = {
         packageName,
         processedIcon,
@@ -99,38 +115,44 @@ class IconCacheService {
         appName,
       };
 
-      // Save to AsyncStorage (debounced to avoid excessive writes)
-      await this.saveCache();
+      // Debounce disk writes (batch multiple icon saves)
+      this.debouncedSave();
     } catch (error) {
       console.error(
         `[IconCache] Failed to cache icon for ${packageName}:`,
-        error
+        error,
       );
     }
   }
 
   /**
-   * Cache multiple icons at once
+   * Cache multiple icons at once (batch operation)
    */
   async cacheIcons(
     icons: Array<{
       packageName: string;
       appName: string;
       processedIcon: string;
-    }>
+    }>,
   ): Promise<void> {
     try {
+      const timestamp = Date.now();
       icons.forEach(({ packageName, appName, processedIcon }) => {
+        // Add to memory cache first
+        this.addToMemoryCache(packageName, processedIcon);
+
+        // Add to persistent cache
         this.cache[packageName] = {
           packageName,
           processedIcon,
-          timestamp: Date.now(),
+          timestamp,
           appName,
         };
       });
 
+      // Immediate save for batch operations (already batched)
       await this.saveCache();
-      console.log(`[IconCache] Cached ${icons.length} icons`);
+      console.log(`[IconCache] ✅ Cached ${icons.length} icons`);
     } catch (error) {
       console.error("[IconCache] Failed to cache icons:", error);
     }
@@ -161,14 +183,76 @@ class IconCacheService {
   }
 
   /**
+   * Add item to memory cache with LRU eviction
+   */
+  private addToMemoryCache(packageName: string, icon: string): void {
+    // Evict oldest if cache full
+    if (this.memoryCache.size >= MAX_MEMORY_ITEMS) {
+      const firstKey = this.memoryCache.keys().next().value;
+      if (firstKey) {
+        this.memoryCache.delete(firstKey);
+      }
+    }
+    this.memoryCache.set(packageName, icon);
+  }
+
+  /**
+   * Debounced save to batch writes (performance optimization)
+   */
+  private debouncedSave(): void {
+    if (this.pendingWrites) {
+      clearTimeout(this.pendingWrites);
+    }
+    this.pendingWrites = setTimeout(() => {
+      this.saveCache();
+      this.pendingWrites = null;
+    }, 500); // Batch writes within 500ms
+  }
+
+  /**
    * Save cache to AsyncStorage
    */
   private async saveCache(): Promise<void> {
     try {
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(this.cache));
+      // Check cache size
+      const cacheString = JSON.stringify(this.cache);
+      const cacheSizeMB = cacheString.length / (1024 * 1024);
+
+      if (cacheSizeMB > MAX_CACHE_SIZE_MB) {
+        console.warn(
+          `[IconCache] Cache size (${cacheSizeMB.toFixed(
+            1,
+          )}MB) exceeds limit, pruning...`,
+        );
+        await this.pruneCache();
+      }
+
+      await AsyncStorage.setItem(CACHE_KEY, cacheString);
     } catch (error) {
       console.error("[IconCache] Failed to save cache:", error);
     }
+  }
+
+  /**
+   * Prune cache to reduce size (keep most recent)
+   */
+  private async pruneCache(): Promise<void> {
+    const entries = Object.values(this.cache);
+    entries.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Keep only most recent 50%
+    const keepCount = Math.floor(entries.length / 2);
+    const newCache: IconCache = {};
+
+    for (let i = 0; i < keepCount; i++) {
+      const entry = entries[i];
+      newCache[entry.packageName] = entry;
+    }
+
+    this.cache = newCache;
+    console.log(
+      `[IconCache] Pruned cache: kept ${keepCount}/${entries.length} icons`,
+    );
   }
 
   /**
@@ -199,6 +283,7 @@ class IconCacheService {
   async clearCache(): Promise<void> {
     try {
       this.cache = {};
+      this.memoryCache.clear();
       await AsyncStorage.removeItem(CACHE_KEY);
       console.log("[IconCache] Cache cleared");
     } catch (error) {
@@ -212,12 +297,13 @@ class IconCacheService {
   async removeCachedIcon(packageName: string): Promise<void> {
     try {
       delete this.cache[packageName];
-      await this.saveCache();
+      this.memoryCache.delete(packageName);
+      this.debouncedSave();
       console.log(`[IconCache] Removed cache for ${packageName}`);
     } catch (error) {
       console.error(
         `[IconCache] Failed to remove cache for ${packageName}:`,
-        error
+        error,
       );
     }
   }

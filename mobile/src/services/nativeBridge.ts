@@ -141,16 +141,45 @@ export const launcher = {
   },
 
   /**
-   * Launch an app by package name
+   * Launch an app by package name or intent URI
    */
   async launchApp(packageName: string): Promise<boolean> {
     if (Platform.OS !== "android") return false;
 
     try {
+      // Handle intent URIs (tel:, sms:, phone:, etc.)
+      if (packageName.startsWith("intent:")) {
+        const { Linking } = await import("react-native");
+        const intentType = packageName.replace("intent:", "");
+        const intentUrl = `${intentType}:`;
+        const canOpen = await Linking.canOpenURL(intentUrl);
+        if (canOpen) {
+          await Linking.openURL(intentUrl);
+          return true;
+        }
+        return false;
+      }
+
+      // Standard package name launch
       const result = await zenLauncher.launchApp(packageName);
       return result.success;
     } catch (error) {
       console.error("[launcher] Error launching app:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Check if an app is installed by package name
+   */
+  async isAppInstalled(packageName: string): Promise<boolean> {
+    if (Platform.OS !== "android") return false;
+
+    try {
+      const installed = await zenLauncher.isAppInstalled(packageName);
+      return installed;
+    } catch (error) {
+      console.error("[launcher] Error checking app installation:", error);
       return false;
     }
   },
@@ -166,6 +195,36 @@ export const launcher = {
       return result.isRunning;
     } catch (error) {
       console.error("[launcher] Error checking app running:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Start listening for screen on/off events
+   */
+  async startScreenListener(): Promise<boolean> {
+    if (Platform.OS !== "android") return false;
+    if (!isNativeModuleAvailable("ZenLauncher")) return false;
+
+    try {
+      return await zenLauncher.startScreenListener();
+    } catch (error) {
+      console.error("[launcher] Error starting screen listener:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Stop listening for screen on/off events
+   */
+  async stopScreenListener(): Promise<boolean> {
+    if (Platform.OS !== "android") return false;
+    if (!isNativeModuleAvailable("ZenLauncher")) return false;
+
+    try {
+      return await zenLauncher.stopScreenListener();
+    } catch (error) {
+      console.error("[launcher] Error stopping screen listener:", error);
       return false;
     }
   },
@@ -279,7 +338,7 @@ export const blocker = {
     } catch (error) {
       console.error(
         "[blocker] Error requesting usage stats permission:",
-        error
+        error,
       );
       return false;
     }
@@ -312,14 +371,14 @@ export const usage = {
    */
   async getUsageInRange(
     startTime: Date,
-    endTime: Date
+    endTime: Date,
   ): Promise<AppUsageStats[]> {
     if (Platform.OS !== "android") return [];
 
     try {
       return await usageStats.getAppUsageForRange(
         startTime.getTime(),
-        endTime.getTime()
+        endTime.getTime(),
       );
     } catch (error) {
       console.error("[usage] Error getting usage in range:", error);
@@ -401,7 +460,7 @@ export const notifications = {
 
     try {
       const result = await zenNotification.blockNotificationsFromApps(
-        packageNames
+        packageNames,
       );
       return result.success;
     } catch (error) {
@@ -418,7 +477,7 @@ export const notifications = {
 
     try {
       const result = await zenNotification.unblockNotificationsFromApps(
-        packageNames
+        packageNames,
       );
       return result.success;
     } catch (error) {
@@ -494,7 +553,7 @@ export const dnd = {
     try {
       const result = await dndModule.toggleDND();
       console.log(
-        `[dnd] Toggle successful - DND is now ${result.enabled ? "ON" : "OFF"}`
+        `[dnd] Toggle successful - DND is now ${result.enabled ? "ON" : "OFF"}`,
       );
       return result.enabled ?? false;
     } catch (error) {
@@ -621,7 +680,7 @@ export const focusSession = {
       await focusEnforcement.startEnforcement(blockedApps, goalMinutes);
 
       console.log(
-        `[focusSession] Started ${goalMinutes}min focus session, blocking ${blockedApps.length} apps`
+        `[focusSession] Started ${goalMinutes}min focus session, blocking ${blockedApps.length} apps`,
       );
       return true;
     } catch (error) {
@@ -700,7 +759,7 @@ export const notificationListener = {
    */
   async setFocusMode(
     enabled: boolean,
-    blockedPackages: string[]
+    blockedPackages: string[],
   ): Promise<boolean> {
     if (Platform.OS !== "android") {
       console.warn("[notificationListener] Only available on Android");
@@ -712,7 +771,7 @@ export const notificationListener = {
       console.log(
         `[notificationListener] Focus mode ${
           enabled ? "enabled" : "disabled"
-        }, blocking ${blockedPackages.length} packages`
+        }, blocking ${blockedPackages.length} packages`,
       );
       return true;
     } catch (error) {
@@ -735,7 +794,7 @@ export const notificationListener = {
     } catch (error) {
       console.error(
         "[notificationListener] Error getting suppressed notifications:",
-        error
+        error,
       );
       return [];
     }
@@ -755,7 +814,7 @@ export const notificationListener = {
     } catch (error) {
       console.error(
         "[notificationListener] Error clearing suppressed notifications:",
-        error
+        error,
       );
       return false;
     }
@@ -772,7 +831,7 @@ export const notificationListener = {
     } catch (error) {
       console.error(
         "[notificationListener] Error getting suppressed count:",
-        error
+        error,
       );
       return 0;
     }
@@ -1064,7 +1123,7 @@ export const gestures = {
    */
   async configure(
     swipeThreshold: number = 100,
-    velocityThreshold: number = 100
+    velocityThreshold: number = 100,
   ): Promise<boolean> {
     if (Platform.OS !== "android") return false;
 
@@ -1159,7 +1218,7 @@ export const accessibility = {
    */
   async setFocusMode(
     enabled: boolean,
-    blockedPackages: string[]
+    blockedPackages: string[],
   ): Promise<boolean> {
     if (Platform.OS !== "android") return false;
 

@@ -73,21 +73,25 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
 
       // Sort alphabetically
       const sortedApps = installedApps.sort((a, b) =>
-        a.appName.localeCompare(b.appName)
+        a.appName.localeCompare(b.appName),
       );
 
       setApps(sortedApps);
       setFilteredApps(sortedApps);
+      setLoading(false);
 
-      // Preload icons in background (don't block UI)
+      // OPTIMIZATION: Eagerly preload icons in background (fire-and-forget)
+      // This happens after UI is shown, so user sees instant results
       if (isInitialized) {
-        preloadIcons(sortedApps).catch((err) =>
-          console.error("[AppDrawer] Failed to preload icons:", err)
-        );
+        // Use setTimeout to defer preloading until next tick
+        setTimeout(() => {
+          preloadIcons(sortedApps).catch((err) =>
+            console.error("[AppDrawer] Preload failed:", err),
+          );
+        }, 0);
       }
     } catch (error) {
       console.error("[AppDrawer] Error loading apps:", error);
-    } finally {
       setLoading(false);
     }
   };
@@ -102,7 +106,7 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
     const filtered = apps.filter(
       (app) =>
         app.appName.toLowerCase().includes(query) ||
-        app.packageName.toLowerCase().includes(query)
+        app.packageName.toLowerCase().includes(query),
     );
     setFilteredApps(filtered);
   };
@@ -266,6 +270,21 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
         key={viewMode} // Force re-render when view mode changes
         contentContainerStyle={styles.appList}
         showsVerticalScrollIndicator={false}
+        // Performance optimizations
+        initialNumToRender={20} // Render first 20 items immediately
+        maxToRenderPerBatch={10} // Render 10 items per batch
+        updateCellsBatchingPeriod={50} // Update every 50ms
+        windowSize={10} // Keep 10 screens worth of items in memory
+        removeClippedSubviews={true} // Remove offscreen views (Android optimization)
+        getItemLayout={
+          viewMode === "grid"
+            ? (data, index) => ({
+                length: 110, // Height of grid item
+                offset: 110 * Math.floor(index / 4),
+                index,
+              })
+            : undefined
+        }
         ListEmptyComponent={
           <Animated.View
             style={[

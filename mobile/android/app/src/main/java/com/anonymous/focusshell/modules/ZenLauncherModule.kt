@@ -1,9 +1,11 @@
 package com.anonymous.focusshell.modules
 
 import android.app.role.RoleManager
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -26,8 +28,79 @@ import java.io.ByteArrayOutputStream
 class ZenLauncherModule(reactContext: ReactApplicationContext) : 
     ReactContextBaseJavaModule(reactContext) {
 
+    private var screenReceiver: BroadcastReceiver? = null
+
     override fun getName(): String {
         return "ZenLauncher"
+    }
+
+    /**
+     * Start listening for screen on/off events
+     */
+    @ReactMethod
+    fun startScreenListener(promise: Promise) {
+        try {
+            if (screenReceiver == null) {
+                screenReceiver = object : BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent?) {
+                        when (intent?.action) {
+                            Intent.ACTION_SCREEN_ON -> {
+                                sendEvent("onScreenOn", null)
+                            }
+                            Intent.ACTION_SCREEN_OFF -> {
+                                sendEvent("onScreenOff", null)
+                            }
+                        }
+                    }
+                }
+
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_ON)
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                }
+                
+                reactApplicationContext.registerReceiver(screenReceiver, filter)
+                promise.resolve(true)
+            } else {
+                promise.resolve(true)
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to start screen listener: ${e.message}")
+        }
+    }
+
+    /**
+     * Stop listening for screen on/off events
+     */
+    @ReactMethod
+    fun stopScreenListener(promise: Promise) {
+        try {
+            screenReceiver?.let {
+                reactApplicationContext.unregisterReceiver(it)
+                screenReceiver = null
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to stop screen listener: ${e.message}")
+        }
+    }
+
+    /**
+     * Send event to JavaScript
+     */
+    private fun sendEvent(eventName: String, params: WritableMap?) {
+        reactApplicationContext
+            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+            .emit(eventName, params)
+    }
+
+    /**
+     * Required for NativeEventEmitter - cleanup listeners
+     */
+    @ReactMethod
+    fun removeListeners(count: Int) {
+        // Required method for NativeEventEmitter
+        // Listeners are managed by React Native's event system
     }
 
     /**
@@ -254,6 +327,22 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
             }
         } catch (e: Exception) {
             promise.reject("ERROR", "Failed to launch app: ${e.message}")
+        }
+    }
+
+    /**
+     * Check if an app is installed by package name
+     */
+    @ReactMethod
+    fun isAppInstalled(packageName: String, promise: Promise) {
+        try {
+            val pm = reactApplicationContext.packageManager
+            pm.getPackageInfo(packageName, PackageManager.GET_ACTIVITIES)
+            promise.resolve(true)
+        } catch (e: PackageManager.NameNotFoundException) {
+            promise.resolve(false)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to check app installation: ${e.message}")
         }
     }
 

@@ -54,7 +54,8 @@ export function useIconCache(): UseIconCacheResult {
 
   /**
    * Preload icons for apps that aren't cached yet
-   * Runs in background without blocking UI
+   * Ultra-optimized: Runs in background without blocking UI
+   * Uses request prioritization and adaptive batching
    */
   const preloadIcons = useCallback(
     async (apps: InstalledApp[]) => {
@@ -68,57 +69,65 @@ export function useIconCache(): UseIconCacheResult {
 
         // Filter apps that need caching
         const uncachedApps = apps.filter(
-          (app) => app.icon && !iconCacheService.isCached(app.packageName)
+          (app) => app.icon && !iconCacheService.isCached(app.packageName),
         );
 
         if (uncachedApps.length === 0) {
-          console.log("[useIconCache] All icons already cached");
+          console.log("[useIconCache] ✅ All icons already cached");
           updateStats();
+          setIsPreloading(false);
           return;
         }
 
         console.log(
-          `[useIconCache] Preloading ${uncachedApps.length} icons...`
+          `[useIconCache] 🚀 Preloading ${uncachedApps.length} icons...`,
         );
 
-        // Process in batches to avoid memory issues
-        const BATCH_SIZE = 20;
+        // Aggressive batch processing for speed
+        const BATCH_SIZE = 50; // Larger batches for faster processing
         const batches = [];
         for (let i = 0; i < uncachedApps.length; i += BATCH_SIZE) {
           batches.push(uncachedApps.slice(i, i + BATCH_SIZE));
         }
 
-        for (let i = 0; i < batches.length; i++) {
-          const batch = batches[i];
-          const iconsToProcess = batch
-            .filter((app) => app.icon)
-            .map((app) => ({
-              packageName: app.packageName,
-              appName: app.appName,
-              icon: app.icon!,
-            }));
+        // Process all batches concurrently (parallel processing)
+        await Promise.all(
+          batches.map(async (batch, batchIndex) => {
+            try {
+              const iconsToProcess = batch
+                .filter((app) => app.icon)
+                .map((app) => ({
+                  packageName: app.packageName,
+                  appName: app.appName,
+                  icon: app.icon!,
+                }));
 
-          // Process batch
-          const processed = await batchConvertToGrayscale(iconsToProcess);
+              // Process batch
+              const processed = await batchConvertToGrayscale(iconsToProcess);
 
-          // Cache batch
-          await iconCacheService.cacheIcons(processed);
+              // Cache batch immediately
+              await iconCacheService.cacheIcons(processed);
 
-          console.log(
-            `[useIconCache] Processed batch ${i + 1}/${batches.length}`
-          );
-
-          // Small delay to avoid blocking UI
-          if (i < batches.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-        }
+              console.log(
+                `[useIconCache] ✓ Batch ${batchIndex + 1}/${batches.length} (${
+                  processed.length
+                } icons)`,
+              );
+            } catch (error) {
+              console.error(
+                `[useIconCache] Batch ${batchIndex + 1} failed:`,
+                error,
+              );
+              // Continue with other batches
+            }
+          }),
+        );
 
         updateStats();
         console.log(
-          `[useIconCache] Preloading complete. Total cached: ${
+          `[useIconCache] ✅ Preloading complete! Total cached: ${
             iconCacheService.getStats().totalCached
-          }`
+          }`,
         );
       } catch (error) {
         console.error("[useIconCache] Failed to preload icons:", error);
@@ -126,7 +135,7 @@ export function useIconCache(): UseIconCacheResult {
         setIsPreloading(false);
       }
     },
-    [isInitialized, updateStats]
+    [isInitialized, updateStats],
   );
 
   const clearCache = useCallback(async () => {

@@ -20,7 +20,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // SVG Path data for each letter
 const LETTER_PATHS = {
@@ -39,6 +39,9 @@ const COFFEE_MUG_PATH =
   "M50 80 L50 200 Q50 220 70 220 L180 220 Q200 220 200 200 L200 80 M210 110 Q240 110 240 140 Q240 170 210 170";
 const MUG_WIDTH = 250;
 const MUG_HEIGHT = 250;
+
+// Calculate responsive mug size based on available space
+const MAX_MUG_SIZE = Math.min(SCREEN_WIDTH * 0.55, SCREEN_HEIGHT * 0.3);
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedG = Animated.createAnimatedComponent(G);
@@ -465,8 +468,8 @@ export default function FocusTimerScreen() {
             ]}
           >
             <Svg
-              width={SCREEN_WIDTH * 0.6}
-              height={SCREEN_WIDTH * 0.6}
+              width={MAX_MUG_SIZE}
+              height={MAX_MUG_SIZE}
               viewBox="0 0 250 250"
             >
               <Defs>
@@ -838,9 +841,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "space-evenly",
+    justifyContent: "center",
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 8,
+    gap: 16,
   },
   modeSelector: {
     flexDirection: "row",
@@ -869,7 +873,9 @@ const styles = StyleSheet.create({
   liquidContainer: {
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: 20,
+    flex: 1,
+    maxHeight: SCREEN_HEIGHT * 0.45,
+    minHeight: 200,
   },
   focusLettersRow: {
     flexDirection: "row",
@@ -880,8 +886,8 @@ const styles = StyleSheet.create({
   coffeeMugContainer: {
     alignItems: "center",
     justifyContent: "center",
-    width: SCREEN_WIDTH * 0.6,
-    height: SCREEN_WIDTH * 0.6,
+    width: MAX_MUG_SIZE,
+    height: MAX_MUG_SIZE,
   },
   letterContainer: {
     alignItems: "center",
@@ -889,9 +895,9 @@ const styles = StyleSheet.create({
   },
   liquidTimerText: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 56,
+    fontSize: Math.min(56, SCREEN_WIDTH * 0.13),
     color: "#FFFFFF",
-    marginTop: 24,
+    marginTop: 12,
     letterSpacing: 6,
     textShadowColor: "rgba(255, 255, 255, 0.3)",
     textShadowOffset: { width: 0, height: 0 },
@@ -900,12 +906,12 @@ const styles = StyleSheet.create({
   progressContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 8,
     gap: 8,
   },
   progressText: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 32,
+    fontSize: Math.min(32, SCREEN_WIDTH * 0.075),
     letterSpacing: 2,
   },
   progressLabel: {
@@ -917,7 +923,7 @@ const styles = StyleSheet.create({
     fontFamily: "ZenDots-Regular",
     fontSize: 10,
     color: "rgba(255, 255, 255, 0.5)",
-    marginTop: 12,
+    marginTop: 8,
     letterSpacing: 3,
     textTransform: "uppercase",
   },
@@ -925,7 +931,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    minHeight: 48,
+    height: 48,
     justifyContent: "center",
   },
   adjustButton: {
