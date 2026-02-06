@@ -8,9 +8,11 @@ import {
   Easing,
   Dimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../store";
+import { useSystemInsets } from "../hooks/useSystemInsets";
+import BottomNavBar from "../components/molecules/BottomNavBar";
 import Svg, {
   Path,
   Defs,
@@ -56,7 +58,13 @@ const LETTER_WIDTH =
 const LETTER_HEIGHT = (LETTER_WIDTH * SVG_HEIGHT) / SVG_WIDTH;
 
 export default function FocusTimerScreen() {
+  const [activeTab, setActiveTab] = useState("focus");
   const navigation = useNavigation();
+  const { navBarHeight } = useSystemInsets();
+  const safeNavBarHeight = navBarHeight || 0;
+  const TAB_BAR_HEIGHT = 60;
+  const bottomSpacing = TAB_BAR_HEIGHT + safeNavBarHeight + 16;
+
   const [mode, setMode] = useState<"focus" | "break">("focus");
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [initialTime, setInitialTime] = useState(25 * 60);
@@ -71,6 +79,13 @@ export default function FocusTimerScreen() {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const waveAnim = useRef(new Animated.Value(0)).current;
   const fillAnim = useRef(new Animated.Value(0)).current;
+
+  // Update active tab when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      setActiveTab("focus");
+    }, []),
+  );
 
   useEffect(() => {
     // Entrance animation
@@ -201,7 +216,7 @@ export default function FocusTimerScreen() {
       </Animated.View>
 
       {/* Main Content */}
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: bottomSpacing }]}>
         {/* Mode Selector */}
         <Animated.View style={[styles.modeSelector, { opacity: fadeAnim }]}>
           <TouchableOpacity
@@ -792,7 +807,12 @@ export default function FocusTimerScreen() {
       </View>
 
       {/* Stats */}
-      <Animated.View style={[styles.stats, { opacity: fadeAnim }]}>
+      <Animated.View
+        style={[
+          styles.stats,
+          { opacity: fadeAnim, paddingBottom: bottomSpacing },
+        ]}
+      >
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{sessions}</Text>
@@ -805,6 +825,21 @@ export default function FocusTimerScreen() {
           </View>
         </View>
       </Animated.View>
+      {/* Bottom Navigation */}
+      <BottomNavBar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab === "home") (navigation as any).navigate("Home");
+          else if (tab === "tasks") (navigation as any).navigate("Tasks");
+          else if (tab === "stats") (navigation as any).navigate("Stats");
+        }}
+        themeColors={{
+          textPrimary: "#FFFFFF",
+          textTertiary: "rgba(255, 255, 255, 0.5)",
+          navBackground: "rgba(4, 4, 4, 0.3)",
+        }}
+      />
     </View>
   );
 }
@@ -997,7 +1032,6 @@ const styles = StyleSheet.create({
   },
   stats: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
   },
   statsCard: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",

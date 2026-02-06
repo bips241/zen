@@ -24,12 +24,16 @@ const CURRENT_CACHE_VERSION = "1.1";
 const CACHE_EXPIRY_DAYS = 30; // Icons expire after 30 days
 const MAX_CACHE_SIZE_MB = 50; // Maximum cache size in MB
 const MAX_MEMORY_ITEMS = 200; // Max items to keep in memory
+const BATCH_WRITE_DELAY_MS = 2000; // Batch writes every 2 seconds (reduce I/O)
+const MIN_BATCH_SIZE = 5; // Minimum icons before writing to storage
 
 class IconCacheService {
   private cache: IconCache = {};
   private memoryCache: Map<string, string> = new Map(); // Fast in-memory lookup
   private isInitialized = false;
   private pendingWrites: NodeJS.Timeout | null = null;
+  private pendingIconsCount = 0; // Track pending writes
+  private lastSaveTime = 0; // Track last save timestamp
 
   /**
    * Initialize the cache from AsyncStorage
@@ -52,8 +56,27 @@ class IconCacheService {
       const cacheData = await AsyncStorage.getItem(CACHE_KEY);
       if (cacheData) {
         this.cache = JSON.parse(cacheData);
+
+        // 🚀 PRE-POPULATE MEMORY CACHE for instant access
+        const entries = Object.entries(this.cache);
+        const validEntries = entries.filter(([_, cached]) => {
+          const expiryTime =
+            cached.timestamp + CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+          return Date.now() <= expiryTime;
+        });
+
+        // Add most recent icons to memory cache (up to MAX_MEMORY_ITEMS)
+        validEntries
+          .sort((a, b) => b[1].timestamp - a[1].timestamp)
+          .slice(0, MAX_MEMORY_ITEMS)
+          .forEach(([packageName, cached]) => {
+            this.memoryCache.set(packageName, cached.processedIcon);
+          });
+
         console.log(
-          `[IconCache] Loaded ${Object.keys(this.cache).length} cached icons`,
+          `[IconCache] Loaded ${Object.keys(this.cache).length} cached icons (${
+            this.memoryCache.size
+          } in memory)`,
         );
 
         // Clean expired entries
@@ -114,6 +137,9 @@ class IconCacheService {
         timestamp: Date.now(),
         appName,
       };
+
+      // Track pending writes
+      this.pendingIconsCount++;
 
       // Debounce disk writes (batch multiple icon saves)
       this.debouncedSave();
@@ -197,16 +223,33 @@ class IconCacheService {
   }
 
   /**
-   * Debounced save to batch writes (performance optimization)
+   * Debounced save to AsyncStorage
+   * Only saves if enough icons are pending OR enough time has passed
    */
   private debouncedSave(): void {
     if (this.pendingWrites) {
       clearTimeout(this.pendingWrites);
     }
-    this.pendingWrites = setTimeout(() => {
+
+    // Immediate save if batch is large enough OR 5+ seconds since last save
+    const timeSinceLastSave = Date.now() - this.lastSaveTime;
+    const shouldSaveImmediately =
+      this.pendingIconsCount >= MIN_BATCH_SIZE || timeSinceLastSave > 5000;
+
+    if (shouldSaveImmediately) {
       this.saveCache();
+      this.pendingIconsCount = 0;
+      this.lastSaveTime = Date.now();
       this.pendingWrites = null;
-    }, 500); // Batch writes within 500ms
+    } else {
+      // Batch writes within delay window
+      this.pendingWrites = setTimeout(() => {
+        this.saveCache();
+        this.pendingIconsCount = 0;
+        this.lastSaveTime = Date.now();
+        this.pendingWrites = null;
+      }, BATCH_WRITE_DELAY_MS);
+    }
   }
 
   /**

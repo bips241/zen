@@ -1,11 +1,15 @@
 /**
- * App Drawer Screen
+ * App Drawer Screen - ULTRA-OPTIMIZED
  *
- * Displays all installed apps with search and launch functionality
- * Enhanced with grid/list view toggle and categories
+ * Displays all installed apps with INSTANT loading
+ * Features:
+ * - Lazy icon loading (icons loaded on-demand as user scrolls)
+ * - Priority-based rendering (visible items first)
+ * - Native-side caching for repeat views
+ * - Zero blocking on initial load
  */
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -14,13 +18,14 @@ import {
   TextInput,
   ActivityIndicator,
   Animated,
-  ScrollView,
+  ViewToken,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { Text, Container, Spacer } from "../../components/atoms";
 import CachedAppIcon from "../../components/molecules/CachedAppIcon";
 import { colors, spacing } from "../../theme";
 import { launcher } from "../../services/nativeBridge";
+import { iconCacheService } from "../../services/iconCacheService";
 import { useIconCache } from "../../hooks/useIconCache";
 import type { InstalledApp } from "../../native-android/nativeModules";
 
@@ -30,15 +35,24 @@ interface AppDrawerScreenProps {
   navigation: any;
 }
 
+interface AppWithIcon extends InstalledApp {
+  iconLoaded?: boolean;
+}
+
 export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
-  const [apps, setApps] = useState<InstalledApp[]>([]);
-  const [filteredApps, setFilteredApps] = useState<InstalledApp[]>([]);
+  const [apps, setApps] = useState<AppWithIcon[]>([]);
+  const [filteredApps, setFilteredApps] = useState<AppWithIcon[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [loadingIcons, setLoadingIcons] = useState(false);
 
-  // Icon caching
-  const { isInitialized, preloadIcons, isPreloading } = useIconCache();
+  // Track which icons have been requested and loaded
+  const iconLoadQueue = useRef(new Set<string>());
+  const loadedIcons = useRef(new Set<string>()); // Prevent re-loading same icons
+  const isLoadingBatch = useRef(false);
+  const batchTimeout = useRef<NodeJS.Timeout>();
+  const abortController = useRef<AbortController | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -50,23 +64,37 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 400,
+        duration: 300,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        delay: 100,
-        tension: 50,
+        delay: 50,
+        tension: 60,
         friction: 7,
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Cleanup - prevent memory leaks
+    return () => {
+      if (batchTimeout.current) {
+        clearTimeout(batchTimeout.current);
+      }
+      // Clear native icon cache to free memory
+      launcher.clearIconCache().catch((err) =>
+        console.warn('[AppDrawer] Failed to clear native cache:', err)
+      );
+    };
   }, []);
 
   useEffect(() => {
     filterApps();
   }, [searchQuery, apps]);
 
+  /**
+   * OPTIMIZATION 1: Load apps WITH cached icons for instant display
+   */
   const loadApps = async () => {
     try {
       const installedApps = await launcher.getInstalledApps();
@@ -76,27 +104,141 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
         a.appName.localeCompare(b.appName),
       );
 
-      setApps(sortedApps);
-      setFilteredApps(sortedApps);
+      // 🚀 CHECK CACHE FIRST - Load cached icons instantly!
+      const appsWithCachedIcons = sortedApps.map((app) => {
+        const cachedIcon = iconCacheService.getCachedIcon(app.packageName);
+        const hasIcon = !!cachedIcon;
+        if (hasIcon) {
+          // Mark cached icons as loaded to prevent re-loading
+          loadedIcons.current.add(app.packageName);
+        }
+        return {
+          ...app,
+          icon: cachedIcon || app.icon,
+          iconLoaded: hasIcon,
+        };
+      });
+
+      setApps(appsWithCachedIcons);
+      setFilteredApps(appsWithCachedIcons);
       setLoading(false);
 
-      // OPTIMIZATION: Eagerly preload icons in background (fire-and-forget)
-      // This happens after UI is shown, so user sees instant results
-      if (isInitialized) {
-        // Use setTimeout to defer preloading until next tick
-        setTimeout(() => {
-          preloadIcons(sortedApps).catch((err) =>
-            console.error("[AppDrawer] Preload failed:", err),
-          );
-        }, 0);
-      }
+      const cachedCount = appsWithCachedIcons.filter(a => a.iconLoaded).length;
+      console.log(`[AppDrawer] ✅ Loaded ${sortedApps.length} apps instantly! (${cachedCount} icons from cache)`);
     } catch (error) {
       console.error("[AppDrawer] Error loading apps:", error);
       setLoading(false);
     }
   };
 
-  const filterApps = () => {
+  /**
+   * OPTIMIZATION 2: Lazy load icons in batches as user scrolls
+   */
+  const loadIconsForApps = useCallback(async (packageNames: string[]) => {
+    if (packageNames.length === 0) return;
+
+    // Filter out already loaded icons (deduplication)
+    const newPackages = packageNames.filter(
+      (pkg) => !loadedIcons.current.has(pkg)
+    );
+    if (newPackages.length === 0) return;
+
+    // Add to queue
+    newPackages.forEach((pkg) => iconLoadQueue.current.add(pkg));
+
+    // Clear existing timeout
+    if (batchTimeout.current) {
+      clearTimeout(batchTimeout.current);
+    }
+
+    // Load icons immediately (no debounce for instant display)
+    batchTimeout.current = setTimeout(async () => {
+      if (isLoadingBatch.current || iconLoadQueue.current.size === 0) return;
+
+      isLoadingBatch.current = true;
+      setLoadingIcons(true);
+
+      try {
+        const packagesToLoad = Array.from(iconLoadQueue.current);
+        iconLoadQueue.current.clear();
+
+        console.log(`[AppDrawer] 🎨 Loading ${packagesToLoad.length} icons...`);
+
+        // Fetch icons from native in batch (already grayscale from native)
+        const iconsBatch = await launcher.getAppIconsBatch(packagesToLoad);
+
+        // 🚀 CACHE IMMEDIATELY - Icons are already grayscale from native!
+        const iconsToCache = Object.entries(iconsBatch)
+          .filter(([_, icon]) => icon && icon.length > 0)
+          .map(([packageName, icon]) => {
+            const app = apps.find(a => a.packageName === packageName);
+            return {
+              packageName,
+              appName: app?.appName || packageName,
+              processedIcon: icon // Already grayscale!
+            };
+          });
+        
+        if (iconsToCache.length > 0) {
+          iconCacheService.cacheIcons(iconsToCache).catch(err => {
+            console.warn('[AppDrawer] Failed to cache icons:', err);
+          });
+        }
+
+        // Update apps with loaded icons
+        setApps((prevApps) =>
+          prevApps.map((app) => {
+            if (iconsBatch[app.packageName]) {
+              // Mark as loaded
+              loadedIcons.current.add(app.packageName);
+              return {
+                ...app,
+                icon: iconsBatch[app.packageName],
+                iconLoaded: true,
+              };
+            }
+            return app;
+          }),
+        );
+
+        console.log(
+          `[AppDrawer] ✅ Loaded ${Object.keys(iconsBatch).length} icons`,
+        );
+      } catch (error) {
+        console.error("[AppDrawer] Error loading icon batch:", error);
+      } finally {
+        isLoadingBatch.current = false;
+        setLoadingIcons(false);
+      }
+    }, 1); // 1ms = instant (allows batching within single frame)
+  }, [apps]);
+
+  /**
+   * OPTIMIZATION 3: Load icons for visible items only
+   * Use useRef to keep callback stable (FlatList requirement)
+   */
+  const onViewableItemsChangedRef = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      // Get packages that are visible but don't have icons loaded
+      const visiblePackages = viewableItems
+        .map((item) => (item.item as AppWithIcon).packageName)
+        .filter((pkg) => {
+          // Check if already loaded
+          return !loadedIcons.current.has(pkg);
+        });
+
+      if (visiblePackages.length > 0) {
+        loadIconsForApps(visiblePackages);
+      }
+    },
+  );
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 10,
+    minimumViewTime: 100,
+  }).current;
+
+  const filterApps = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredApps(apps);
       return;
@@ -109,9 +251,9 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
         app.packageName.toLowerCase().includes(query),
     );
     setFilteredApps(filtered);
-  };
+  }, [searchQuery, apps]);
 
-  const handleLaunchApp = async (app: InstalledApp) => {
+  const handleLaunchApp = useCallback(async (app: InstalledApp) => {
     try {
       const success = await launcher.launchApp(app.packageName);
       if (!success) {
@@ -120,19 +262,13 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
     } catch (error) {
       console.error("[AppDrawer] Error launching app:", error);
     }
-  };
+  }, []);
 
   const toggleViewMode = () => {
     setViewMode(viewMode === "grid" ? "list" : "grid");
   };
 
-  const renderApp = ({
-    item,
-    index,
-  }: {
-    item: InstalledApp;
-    index: number;
-  }) => {
+  const renderApp = useCallback(({ item, index }: { item: AppWithIcon; index: number }) => {
     if (viewMode === "grid") {
       return (
         <Animated.View
@@ -149,13 +285,21 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
             activeOpacity={0.7}
             style={styles.appItemContent}
           >
-            <CachedAppIcon
-              packageName={item.packageName}
-              appName={item.appName}
-              icon={item.icon}
-              size={64}
-              grayscale={true}
-            />
+            {item.iconLoaded && item.icon ? (
+              <CachedAppIcon
+                packageName={item.packageName}
+                appName={item.appName}
+                icon={item.icon}
+                size={64}
+                grayscale={true}
+              />
+            ) : (
+              <View style={styles.iconPlaceholder}>
+                <Text variant="caption" style={styles.iconPlaceholderText}>
+                  {item.appName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <Text variant="body" style={styles.appNameGrid} numberOfLines={1}>
               {item.appName}
             </Text>
@@ -187,20 +331,28 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
           activeOpacity={0.7}
           style={styles.appItemListContent}
         >
-          <CachedAppIcon
-            packageName={item.packageName}
-            appName={item.appName}
-            icon={item.icon}
-            size={48}
-            grayscale={true}
-          />
+          {item.iconLoaded && item.icon ? (
+            <CachedAppIcon
+              packageName={item.packageName}
+              appName={item.appName}
+              icon={item.icon}
+              size={48}
+              grayscale={true}
+            />
+          ) : (
+            <View style={[styles.iconPlaceholder, { width: 48, height: 48 }]}>
+              <Text variant="caption" style={styles.iconPlaceholderText}>
+                {item.appName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
           <Text variant="body" style={styles.appNameList} numberOfLines={1}>
             {item.appName}
           </Text>
         </TouchableOpacity>
       </Animated.View>
     );
-  };
+  }, [viewMode, fadeAnim, scaleAnim, handleLaunchApp]);
 
   if (loading) {
     return (
@@ -228,7 +380,7 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text variant="title" style={styles.headerTitle}>
-            All Apps
+            All Apps ({filteredApps.length})
           </Text>
           <TouchableOpacity
             onPress={toggleViewMode}
@@ -265,16 +417,18 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
       <FlatList
         data={filteredApps}
         renderItem={renderApp}
-        keyExtractor={(item) => item.packageName}
+        keyExtractor={(item) => `${item.packageName}-${viewMode}`}
         numColumns={viewMode === "grid" ? 4 : 1}
-        key={viewMode} // Force re-render when view mode changes
         contentContainerStyle={styles.appList}
         showsVerticalScrollIndicator={false}
+        // OPTIMIZATION 4: Viewport tracking for lazy icon loading
+        onViewableItemsChanged={onViewableItemsChangedRef.current}
+        viewabilityConfig={viewabilityConfig}
         // Performance optimizations
-        initialNumToRender={20} // Render first 20 items immediately
-        maxToRenderPerBatch={10} // Render 10 items per batch
-        updateCellsBatchingPeriod={50} // Update every 50ms
-        windowSize={10} // Keep 10 screens worth of items in memory
+        initialNumToRender={24} // Render first screen immediately (6 rows × 4 cols)
+        maxToRenderPerBatch={16} // Render full screen per batch
+        updateCellsBatchingPeriod={16} // Update every frame (60fps)
+        windowSize={5} // Keep 5 screens worth (sufficient for smooth scroll)
         removeClippedSubviews={true} // Remove offscreen views (Android optimization)
         getItemLayout={
           viewMode === "grid"
@@ -308,6 +462,12 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
           </Animated.View>
         }
       />
+
+      {loadingIcons && (
+        <View style={styles.loadingIconsIndicator}>
+          <ActivityIndicator size="small" color={colors.accent} />
+        </View>
+      )}
     </Container>
   );
 }
@@ -377,7 +537,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
   },
-  appIconGrid: {
+  iconPlaceholder: {
     width: 64,
     height: 64,
     borderRadius: 16,
@@ -385,6 +545,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.05)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconPlaceholderText: {
+    fontSize: 24,
+    color: "rgba(255, 255, 255, 0.3)",
+    fontWeight: "600",
   },
   appNameGrid: {
     textAlign: "center",
@@ -416,6 +583,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#000000",
+  },
+  loadingIconsIndicator: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    padding: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   emptyContainer: {
     flex: 1,

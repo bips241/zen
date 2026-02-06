@@ -44,8 +44,11 @@ interface ZenLauncherModule {
   showSystemUI(): Promise<boolean>;
   forceHideSystemBars(): Promise<boolean>;
   getInstalledApps(): Promise<InstalledApp[]>;
+  getAppIconsBatch(packageNames: string[]): Promise<Record<string, string>>;
+  clearIconCache(): Promise<boolean>;
   launchApp(packageName: string): Promise<AppLaunchResult>;
   isAppRunning(packageName: string): Promise<AppRunningInfo>;
+  isAppInstalled(packageName: string): Promise<boolean>;
   openHomeSettings(): Promise<LauncherResult>;
   startScreenListener(): Promise<boolean>;
   stopScreenListener(): Promise<boolean>;

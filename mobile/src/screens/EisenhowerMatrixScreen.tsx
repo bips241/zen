@@ -110,7 +110,7 @@ export default function EisenhowerMatrixScreen() {
         .query(Q.where("completed", false))
         .fetch();
 
-      const eisenhowerTasks: EisenhowerTask[] = allTasks
+      const eisenhowerTasks = allTasks
         .map((dbTask) => {
           const quadrant = priorityToQuadrant(dbTask.priority);
           if (!quadrant) return null;
@@ -122,7 +122,9 @@ export default function EisenhowerMatrixScreen() {
             dbTask,
           };
         })
-        .filter((task): task is EisenhowerTask => task !== null);
+        .filter(
+          (task): task is NonNullable<typeof task> => task !== null,
+        ) as EisenhowerTask[];
 
       setTasks(eisenhowerTasks);
     } catch (error) {

@@ -21,7 +21,6 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { iconCacheService } from "../../services/iconCacheService";
-import { convertToGrayscale } from "../../utils/iconUtils";
 
 interface CachedAppIconProps {
   packageName: string;
@@ -45,80 +44,26 @@ function CachedAppIcon({
   containerStyle,
   grayscale = true,
 }: CachedAppIconProps) {
-  const [processedIcon, setProcessedIcon] = useState<string | null>(() => {
-    // OPTIMIZATION: Check cache immediately on mount (synchronous)
-    if (icon) {
-      const cached = iconCacheService.getCachedIcon(packageName);
-      return cached || null;
-    }
-    return null;
-  });
+  const [iconError, setIconError] = useState(false);
+  
+  // BLAZING FAST: If icon is provided (from cache or native), use it directly!
+  // No async operations, no delays, no duplicate checks
+  const processedIcon = icon || null;
 
-  const isMountedRef = useRef(true);
-
+  // Cache icon in background on mount (fire-and-forget, non-blocking)
   useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    loadIconAsync();
-  }, [packageName, icon]);
-
-  const loadIconAsync = async () => {
-    if (!icon) {
-      setProcessedIcon(null);
-      return;
-    }
-
-    // Check cache again (might have been loaded by another component)
-    const cached = iconCacheService.getCachedIcon(packageName);
-    if (cached) {
-      if (isMountedRef.current) {
-        setProcessedIcon(cached);
-      }
-      return;
-    }
-
-    // Avoid processing same icon multiple times
-    if (processingQueue.has(packageName)) {
-      // Wait for other instance to finish
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const nowCached = iconCacheService.getCachedIcon(packageName);
-      if (nowCached && isMountedRef.current) {
-        setProcessedIcon(nowCached);
-      }
-      return;
-    }
-
-    try {
+    if (icon && !processingQueue.has(packageName)) {
       processingQueue.add(packageName);
-
-      // Process icon (async, non-blocking)
-      const processed = grayscale ? await convertToGrayscale(icon) : icon;
-
-      if (isMountedRef.current) {
-        setProcessedIcon(processed);
-      }
-
-      // Cache in background (fire-and-forget)
-      iconCacheService.cacheIcon(packageName, appName, processed).catch(() => {
-        // Silent fail - icon will be reprocessed next time
-      });
-    } catch (error) {
-      // Fallback to original icon
-      if (isMountedRef.current) {
-        setProcessedIcon(icon);
-      }
-    } finally {
-      processingQueue.delete(packageName);
+      
+      // Cache asynchronously (doesn't block rendering)
+      iconCacheService.cacheIcon(packageName, appName, icon)
+        .catch(() => {}) // Silent fail
+        .finally(() => processingQueue.delete(packageName));
     }
-  };
+  }, [packageName, icon, appName]);
 
-  // Render placeholder if no icon available
-  if (!processedIcon) {
+  // Render placeholder if no icon available or error
+  if (!processedIcon || iconError) {
     return (
       <View
         style={[
@@ -146,11 +91,14 @@ function CachedAppIcon({
           borderRadius: size / 4,
         },
         grayscale && styles.grayscale,
-        style,
-        containerStyle,
+        style as ImageStyle,
       ]}
       resizeMode="cover"
       fadeDuration={0} // Instant rendering
+      onError={() => {
+        console.warn(`[CachedAppIcon] Failed to render icon for ${packageName}`);
+        setIconError(true); // Show placeholder on error
+      }}
     />
   );
 }

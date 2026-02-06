@@ -17,6 +17,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import RootNavigator from "./navigation/RootNavigator";
 import { colors } from "./theme";
 import { database } from "./database";
+import { iconCacheService } from "./services/iconCacheService";
 import { Text } from "./components";
 import { useFonts } from "expo-font";
 import { ZenDots_400Regular } from "@expo-google-fonts/zen-dots";
@@ -27,6 +28,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const navigationRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
+  const isInitialized = useRef(false); // Prevent duplicate initialization
 
   // Load Zen Dots font
   const [fontsLoaded] = useFonts({
@@ -59,7 +61,7 @@ export default function App() {
   const checkForFrictionTrigger = async () => {
     try {
       const trigger = await overlay.getPendingFrictionTrigger();
-      console.log("[App] Checking for friction trigger:", trigger);
+      // console.log("[App] Checking for friction trigger:", trigger); // Silent
 
       if (trigger.hasTrigger && trigger.packageName) {
         console.log("[App] Friction triggered for:", trigger.packageName);
@@ -77,13 +79,24 @@ export default function App() {
   };
 
   const initializeApp = async () => {
+    // Skip if already initialized (prevents reload on screen wake)
+    if (isInitialized.current) {
+      console.log("[App] Already initialized, skipping");
+      return;
+    }
+
     try {
       // Database is already initialized when imported
-      console.log("[App] Database initialized");
+      // console.log("[App] Database initialized"); // Silent: reduce reload noise
+
+      // 🚀 Initialize icon cache FIRST for blazing fast app drawer
+      await iconCacheService.initialize();
+      console.log("[App] ✅ Icon cache initialized");
 
       // Small delay to ensure everything is ready
       await new Promise((resolve) => setTimeout(resolve, 500));
 
+      isInitialized.current = true;
       setIsReady(true);
     } catch (err) {
       console.error("[App] Initialization error:", err);

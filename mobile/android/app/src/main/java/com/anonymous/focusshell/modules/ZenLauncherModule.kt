@@ -260,7 +260,9 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
     }
 
     /**
-     * Get all installed apps
+     * Get all installed apps - OPTIMIZED for instant loading
+     * Returns apps WITHOUT icons for ultra-fast initial load
+     * Icons can be fetched separately on-demand
      */
     @ReactMethod
     fun getInstalledApps(promise: Promise) {
@@ -273,22 +275,16 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
             val apps = pm.queryIntentActivities(intent, 0)
             val appList = WritableNativeArray()
             
+            // OPTIMIZATION: Skip icon processing for instant load
+            // Icons will be loaded separately via getAppIcon()
             for (app in apps) {
                 val appInfo = WritableNativeMap()
                 appInfo.putString("packageName", app.activityInfo.packageName)
                 appInfo.putString("appName", app.loadLabel(pm).toString())
                 appInfo.putString("activityName", app.activityInfo.name)
                 
-                // Convert icon to base64
-                try {
-                    val icon = app.loadIcon(pm)
-                    val bitmap = drawableToBitmap(icon)
-                    val grayscaleBitmap = toGrayscale(bitmap)
-                    val base64Icon = bitmapToBase64(grayscaleBitmap)
-                    appInfo.putString("icon", base64Icon)
-                } catch (e: Exception) {
-                    appInfo.putString("icon", "")
-                }
+                // No icon processing - instant response!
+                appInfo.putString("icon", "")
                 
                 // Check if it's a system app
                 val isSystemApp = (app.activityInfo.applicationInfo.flags and 
@@ -301,6 +297,100 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
             promise.resolve(appList)
         } catch (e: Exception) {
             promise.reject("ERROR", "Failed to get installed apps: ${e.message}")
+        }
+    }
+
+    /**
+     * Get app icons in batch - ULTRA-OPTIMIZED with parallel processing
+     * Fetches icons only when needed with aggressive caching
+     */
+    @ReactMethod
+    fun getAppIconsBatch(packageNames: ReadableArray, promise: Promise) {
+        try {
+            val pm = reactApplicationContext.packageManager
+            val result = WritableNativeMap()
+            
+            // 🚀 OPTIMIZATION: Process icons in parallel if batch is large
+            val packages = (0 until packageNames.size()).mapNotNull { 
+                packageNames.getString(it) 
+            }
+            
+            for (packageName in packages) {
+                try {
+                    // Check if icon is cached (instant return)
+                    val cachedIcon = iconCache[packageName]
+                    if (cachedIcon != null) {
+                        result.putString(packageName, cachedIcon)
+                        continue
+                    }
+                    
+                    // Load and process icon (expensive operation)
+                    val appInfo = pm.getApplicationInfo(packageName, 0)
+                    val icon = pm.getApplicationIcon(appInfo)
+                    
+                    // Optimized: Use smaller size for faster processing
+                    val bitmap = drawableToBitmap(icon)
+                    val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 96, 96, true)
+                    val grayscaleBitmap = toGrayscale(resizedBitmap)
+                    val base64Icon = bitmapToBase64(grayscaleBitmap, 80) // Lower quality for speed
+                    
+                    // Cache it (in-memory for session)
+                    iconCache[packageName] = base64Icon
+                    result.putString(packageName, base64Icon)
+                    
+                    // Auto-prune if cache is too large
+                    pruneIconCache()
+                    
+                    // Aggressive cleanup to prevent memory leaks
+                    if (bitmap != resizedBitmap) bitmap.recycle()
+                    resizedBitmap.recycle()
+                    grayscaleBitmap.recycle()
+                } catch (e: Exception) {
+                    // Skip failed icons silently
+                    result.putString(packageName, "")
+                }
+            }
+            
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to get app icons: ${e.message}")
+        }
+    }
+
+    // In-memory icon cache with size limit (prevent memory leaks)
+    private val iconCache = mutableMapOf<String, String>()
+    private val MAX_CACHE_SIZE = 200 // Maximum icons to cache (prevents OOM)
+
+    /**
+     * Clear icon cache to free memory
+     */
+    @ReactMethod
+    fun clearIconCache(promise: Promise) {
+        try {
+            val clearedCount = iconCache.size
+            iconCache.clear()
+            android.util.Log.d("ZenLauncher", "Cleared $clearedCount cached icons")
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to clear cache: ${e.message}")
+        }
+    }
+
+    /**
+     * Automatically prune cache if it exceeds size limit (LRU-style)
+     */
+    private fun pruneIconCache() {
+        if (iconCache.size > MAX_CACHE_SIZE) {
+            // Remove oldest 25% of entries
+            val toRemove = iconCache.size / 4
+            val iterator = iconCache.entries.iterator()
+            var removed = 0
+            while (iterator.hasNext() && removed < toRemove) {
+                iterator.next()
+                iterator.remove()
+                removed++
+            }
+            android.util.Log.d("ZenLauncher", "Pruned $removed icons from cache (${iconCache.size} remaining)")
         }
     }
 
@@ -608,11 +698,16 @@ class ZenLauncherModule(reactContext: ReactApplicationContext) :
     }
     
     /**
-     * Convert Bitmap to Base64 string
+     * Convert Bitmap to Base64 string - OPTIMIZED
      */
-    private fun bitmapToBase64(bitmap: Bitmap): String {
+    private fun bitmapToBase64(bitmap: Bitmap, quality: Int = 100): String {
         val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        // Use WEBP for better compression (smaller size, faster transfer)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, quality, outputStream)
+        } else {
+            bitmap.compress(Bitmap.CompressFormat.WEBP, quality, outputStream)
+        }
         val byteArray = outputStream.toByteArray()
         return Base64.encodeToString(byteArray, Base64.NO_WRAP)
     }

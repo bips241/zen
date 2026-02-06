@@ -10,6 +10,7 @@
     ],
     "sdkVersion": "48.0.0",
     "orientation": "portrait",
+    "icon": "./src/assets/ZEN.png",
     "updates": {
       "fallbackToCacheTimeout": 0
     },
@@ -17,7 +18,12 @@
       "**/*"
     ],
     "android": {
-      "package": "com.anonymous.focusshell"
+      "package": "com.anonymous.focusshell",
+      "icon": "./src/assets/ZEN.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/ZEN.png",
+        "backgroundColor": "#000000"
+      }
     },
     "extra": {
       "eas": {

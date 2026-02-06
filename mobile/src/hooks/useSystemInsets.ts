@@ -21,7 +21,7 @@ const { SystemUIModule } = NativeModules;
 // Debug: Log all available native modules
 console.log(
   "[useSystemInsets] Available native modules:",
-  Object.keys(NativeModules).sort().join(", ")
+  Object.keys(NativeModules).sort().join(", "),
 );
 console.log("[useSystemInsets] SystemUIModule exists?", !!SystemUIModule);
 
@@ -68,7 +68,7 @@ export function useSystemInsets() {
     // Fallback to react-native-safe-area-context if SystemUIModule not available
     if (Platform.OS !== "android" || !SystemUIModule) {
       console.warn(
-        "[useSystemInsets] SystemUIModule not available - using SafeAreaInsets fallback"
+        "[useSystemInsets] SystemUIModule not available - using SafeAreaInsets fallback",
       );
 
       // Map SafeAreaInsets to SystemInsets format
@@ -95,23 +95,24 @@ export function useSystemInsets() {
     const insetsListener = eventEmitter.addListener(
       "onWindowInsetsChanged",
       (data: SystemInsets) => {
-        console.log("[useSystemInsets] Insets changed:", data);
+        // Silent insets update (reduce log noise)
+        // console.log("[useSystemInsets] Insets changed:", data);
         setInsets(data);
         cachedInsets = data; // Update cache
-      }
+      },
     );
 
     // Start monitoring
     SystemUIModule.startMonitoring()
       .then(() => {
-        console.log("[useSystemInsets] Monitoring started");
+        // console.log("[useSystemInsets] Monitoring started");
         setIsMonitoring(true);
 
         // Get initial insets
         return SystemUIModule.getCurrentInsets();
       })
       .then((currentInsets: SystemInsets) => {
-        console.log("[useSystemInsets] Initial insets:", currentInsets);
+        // console.log("[useSystemInsets] Initial insets:", currentInsets);
         setInsets(currentInsets);
         cachedInsets = currentInsets; // Cache for next render
       })
@@ -124,7 +125,7 @@ export function useSystemInsets() {
       insetsListener.remove();
       SystemUIModule.stopMonitoring()
         .then(() => {
-          console.log("[useSystemInsets] Monitoring stopped");
+          // console.log("[useSystemInsets] Monitoring stopped");
           setIsMonitoring(false);
         })
         .catch((error: Error) => {

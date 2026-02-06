@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { BlurView } from "expo-blur";
 import { useSystemInsets } from "@/hooks/useSystemInsets";
 import FocusTimerScreen from "@/screens/FocusTimerScreen";
 import HomeShell from "@/screens/HomeShell";
@@ -16,7 +17,7 @@ export default function TabNavigator() {
     useSystemInsets();
 
   // State to handle delayed visibility
-  const [shouldShowTabBar, setShouldShowTabBar] = useState(!isNavBarVisible);
+  const [shouldShowTabBar, setShouldShowTabBar] = useState(true);
 
   // Handle delayed show when system navbar hides
   useEffect(() => {
@@ -24,10 +25,10 @@ export default function TabNavigator() {
       // Hide immediately when system navbar shows
       setShouldShowTabBar(false);
     } else {
-      // Show with 200ms delay when system navbar hides
+      // Show with 100ms delay when system navbar hides
       const timer = setTimeout(() => {
         setShouldShowTabBar(true);
-      }, 200);
+      }, 100);
 
       return () => clearTimeout(timer);
     }
@@ -91,11 +92,12 @@ export default function TabNavigator() {
           marginTop: 4,
         },
         tabBarBackground: () => (
-          <View
+          <BlurView
+            intensity={100}
+            tint="dark"
             style={{
               flex: 1,
-              backgroundColor: "rgba(0, 0, 0, 0.75)",
-              backdropFilter: "blur(20px)",
+              overflow: "hidden",
             }}
           />
         ),

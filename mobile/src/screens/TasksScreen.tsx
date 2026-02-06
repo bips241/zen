@@ -17,13 +17,14 @@ import {
   Dimensions,
   Platform,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSystemInsets } from "../hooks/useSystemInsets";
 import { CategoryService } from "../services/categoryService";
 import { TaskService, TaskData } from "../services/taskService";
 import Task from "../database/models/Task";
+import BottomNavBar from "../components/molecules/BottomNavBar";
 
 type ViewMode = "today" | "week" | "month" | "calendar" | "all";
 type Priority = "urgent-important" | "urgent" | "important" | "low";
@@ -42,6 +43,8 @@ const PRIORITIES = {
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function TasksScreen() {
+  const [activeTab, setActiveTab] = useState("tasks");
+  const navigation = useNavigation();
   const { navBarHeight, insets, isKeyboardVisible } = useSystemInsets();
 
   // Dynamic bottom calculation: use keyboard height when visible, otherwise navbar
@@ -51,7 +54,11 @@ export default function TasksScreen() {
     ? keyboardHeight
     : safeNavBarHeight;
 
-  const bottomSpacing = 16;
+  // Tab bar height + system navbar height + padding
+  const TAB_BAR_HEIGHT = 60;
+  const bottomSpacing = TAB_BAR_HEIGHT + safeNavBarHeight + 16;
+  const QUICK_ADD_HEIGHT = 70; // Height of the add task button bar
+  const quickAddBarBottom = TAB_BAR_HEIGHT + safeNavBarHeight; // Position above navbar
 
   const [viewMode, setViewMode] = useState<ViewMode>("today");
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -88,6 +95,13 @@ export default function TasksScreen() {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Update active tab when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      setActiveTab("tasks");
+    }, []),
+  );
 
   useEffect(() => {
     Animated.parallel([
@@ -130,16 +144,30 @@ export default function TasksScreen() {
   };
 
   const handleAddCategory = async () => {
-    if (newCategoryName.trim()) {
-      try {
-        const updated = await CategoryService.addCategory(
-          newCategoryName.trim()
-        );
-        setCategories(updated);
-        setNewCategoryName("");
-      } catch (error: any) {
-        alert(error.message || "Failed to add category");
-      }
+    const trimmedName = newCategoryName.trim();
+
+    // Validation checks
+    if (!trimmedName) {
+      alert("Category name cannot be empty");
+      return;
+    }
+
+    if (trimmedName.length > 50) {
+      alert("Category name is too long (max 50 characters)");
+      return;
+    }
+
+    if (categories.includes(trimmedName)) {
+      alert("Category already exists");
+      return;
+    }
+
+    try {
+      const updated = await CategoryService.addCategory(trimmedName);
+      setCategories(updated);
+      setNewCategoryName("");
+    } catch (error: any) {
+      alert(error.message || "Failed to add category");
     }
   };
 
@@ -154,21 +182,28 @@ export default function TasksScreen() {
 
   // Get tasks for specific date (including recurring)
   const getTasksForDate = (date: Date) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      console.error("Invalid date provided to getTasksForDate");
+      return [];
+    }
+
     const targetDate = new Date(
       date.getFullYear(),
       date.getMonth(),
-      date.getDate()
+      date.getDate(),
     );
     const dayOfWeek = targetDate.getDay();
 
     return tasks.filter((task) => {
+      if (!task) return false;
+
       // Check if task has a due date on this specific date
       if (task.dueDate) {
         const taskDate = new Date(task.dueDate);
         const taskDateOnly = new Date(
           taskDate.getFullYear(),
           taskDate.getMonth(),
-          taskDate.getDate()
+          taskDate.getDate(),
         );
         if (taskDateOnly.getTime() === targetDate.getTime()) return true;
       }
@@ -196,7 +231,22 @@ export default function TasksScreen() {
         // Monthly recurring (same day of month)
         if (task.recurringType === "monthly" && task.dueDate) {
           const taskDate = new Date(task.dueDate);
-          return targetDate.getDate() === taskDate.getDate();
+          const taskDay = taskDate.getDate();
+          const targetDay = targetDate.getDate();
+
+          // Handle end-of-month edge cases (e.g., task on 31st but month has 30 days)
+          const lastDayOfTargetMonth = new Date(
+            targetDate.getFullYear(),
+            targetDate.getMonth() + 1,
+            0,
+          ).getDate();
+
+          if (taskDay > lastDayOfTargetMonth) {
+            // If task day doesn't exist in target month, use last day of month
+            return targetDay === lastDayOfTargetMonth;
+          }
+
+          return targetDay === taskDay;
         }
       }
 
@@ -216,11 +266,11 @@ export default function TasksScreen() {
         return getTasksForDate(today);
       case "week":
         return tasks.filter(
-          (t) => !t.dueDate || t.dueDate <= weekEnd.getTime()
+          (t) => !t.dueDate || t.dueDate <= weekEnd.getTime(),
         );
       case "month":
         return tasks.filter(
-          (t) => !t.dueDate || t.dueDate <= monthEnd.getTime()
+          (t) => !t.dueDate || t.dueDate <= monthEnd.getTime(),
         );
       case "calendar":
         return getTasksForDate(selectedDate);
@@ -241,98 +291,241 @@ export default function TasksScreen() {
     return acc;
   }, {} as Record<Priority, Task[]>);
 
-  // Calculate statistics
+  // Calculate statistics with safe defaults
   const totalTimeToday = activeTasks.reduce(
     (sum, t) => sum + (t.timeEstimate || 0),
-    0
+    0,
   );
+
+  // Safe completion rate calculation
+  const totalTasksCount = filteredTasks.length;
+  const completedCount = completedTasks.length;
   const completionRate =
-    tasks.length > 0
-      ? Math.round((completedTasks.length / tasks.length) * 100)
+    totalTasksCount > 0
+      ? Math.round((completedCount / totalTasksCount) * 100)
       : 0;
 
   const toggleTask = async (taskId: string) => {
+    if (!taskId || typeof taskId !== "string") {
+      console.error("Invalid task ID provided for toggle");
+      return;
+    }
+
     try {
       await TaskService.toggleTask(taskId);
       await loadTasks();
     } catch (error) {
       console.error("Failed to toggle task:", error);
+      alert("Failed to update task status");
     }
   };
 
   const toggleSubtask = async (taskId: string, subtaskId: string) => {
+    if (
+      !taskId ||
+      typeof taskId !== "string" ||
+      !subtaskId ||
+      typeof subtaskId !== "string"
+    ) {
+      console.error("Invalid task or subtask ID provided");
+      return;
+    }
+
     try {
       await TaskService.toggleSubtask(taskId, subtaskId);
       await loadTasks();
     } catch (error) {
       console.error("Failed to toggle subtask:", error);
+      alert("Failed to update subtask status");
     }
   };
 
   const deleteTask = async (taskId: string) => {
+    if (!taskId || typeof taskId !== "string") {
+      console.error("Invalid task ID provided for deletion");
+      return;
+    }
+
     try {
       await TaskService.deleteTask(taskId);
       await loadTasks();
     } catch (error) {
       console.error("Failed to delete task:", error);
+      alert("Failed to delete task. It may have already been deleted.");
     }
   };
 
   const addTask = async () => {
-    if (newTask.text.trim()) {
-      try {
-        const taskData: TaskData = {
-          text: newTask.text,
-          priority: newTask.priority,
-          category: newTask.category,
-          timeEstimate: newTask.timeEstimate,
-          taskTime: newTask.taskTime,
-          dueDate: newTask.dueDate,
-          recurring: newTask.recurring || undefined,
-        };
+    const trimmedText = newTask.text.trim();
 
-        await TaskService.createTask(taskData);
-        await loadTasks();
+    // Validation checks
+    if (!trimmedText) {
+      alert("Task description cannot be empty");
+      return;
+    }
 
-        setNewTask({
-          text: "",
-          priority: "urgent-important",
-          category: "Work",
-          timeEstimate: 30,
-          taskTime: undefined,
-          dueDate: new Date(),
-          recurring: null,
-        });
-        setShowAddModal(false);
-      } catch (error) {
-        console.error("Failed to create task:", error);
-        alert("Failed to create task");
+    if (trimmedText.length > 500) {
+      alert("Task description is too long (max 500 characters)");
+      return;
+    }
+
+    // Validate time estimate
+    if (
+      newTask.timeEstimate &&
+      (newTask.timeEstimate < 1 || newTask.timeEstimate > 1440)
+    ) {
+      alert("Time estimate must be between 1 and 1440 minutes (24 hours)");
+      return;
+    }
+
+    // Validate due date is not in the past (unless it's today)
+    if (newTask.dueDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(newTask.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+
+      if (dueDate < today) {
+        alert("Cannot create tasks with past due dates");
+        return;
       }
+    }
+
+    // Validate recurring task configuration
+    if (newTask.recurring) {
+      if (
+        newTask.recurring.type === "weekly" &&
+        (!newTask.recurring.weekdays || newTask.recurring.weekdays.length === 0)
+      ) {
+        alert("Weekly recurring tasks must have at least one selected day");
+        return;
+      }
+
+      if (newTask.recurring.endDate) {
+        const endDate = new Date(newTask.recurring.endDate);
+        const startDate = newTask.dueDate
+          ? new Date(newTask.dueDate)
+          : new Date();
+
+        if (endDate <= startDate) {
+          alert("Recurring end date must be after the start date");
+          return;
+        }
+      }
+    }
+
+    try {
+      const taskData: TaskData = {
+        text: trimmedText,
+        priority: newTask.priority,
+        category: newTask.category,
+        timeEstimate: newTask.timeEstimate,
+        taskTime: newTask.taskTime,
+        dueDate: newTask.dueDate,
+        recurring: newTask.recurring || undefined,
+      };
+
+      await TaskService.createTask(taskData);
+      await loadTasks();
+
+      setNewTask({
+        text: "",
+        priority: "urgent-important",
+        category: "Work",
+        timeEstimate: 30,
+        taskTime: undefined,
+        dueDate: new Date(),
+        recurring: null,
+      });
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Failed to create task:", error);
+      alert("Failed to create task");
     }
   };
 
   const editTask = async () => {
-    if (editingTask && newTask.text.trim()) {
-      try {
-        const taskData: Partial<TaskData> = {
-          text: newTask.text,
-          priority: newTask.priority,
-          category: newTask.category,
-          timeEstimate: newTask.timeEstimate,
-          taskTime: newTask.taskTime,
-          dueDate: newTask.dueDate,
-          recurring: newTask.recurring || undefined,
-        };
+    if (!editingTask) {
+      alert("No task selected for editing");
+      return;
+    }
 
-        await TaskService.updateTask(editingTask.id, taskData);
-        await loadTasks();
+    const trimmedText = newTask.text.trim();
 
-        setEditingTask(null);
-        setShowEditModal(false);
-      } catch (error) {
-        console.error("Failed to update task:", error);
-        alert("Failed to update task");
+    if (!trimmedText) {
+      alert("Task description cannot be empty");
+      return;
+    }
+
+    if (trimmedText.length > 500) {
+      alert("Task description is too long (max 500 characters)");
+      return;
+    }
+
+    // Validate time estimate
+    if (
+      newTask.timeEstimate &&
+      (newTask.timeEstimate < 1 || newTask.timeEstimate > 1440)
+    ) {
+      alert("Time estimate must be between 1 and 1440 minutes (24 hours)");
+      return;
+    }
+
+    // Validate due date
+    if (newTask.dueDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(newTask.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+
+      if (dueDate < today) {
+        alert("Cannot set past due dates");
+        return;
       }
+    }
+
+    // Validate recurring task configuration
+    if (newTask.recurring) {
+      if (
+        newTask.recurring.type === "weekly" &&
+        (!newTask.recurring.weekdays || newTask.recurring.weekdays.length === 0)
+      ) {
+        alert("Weekly recurring tasks must have at least one selected day");
+        return;
+      }
+
+      if (newTask.recurring.endDate) {
+        const endDate = new Date(newTask.recurring.endDate);
+        const startDate = newTask.dueDate
+          ? new Date(newTask.dueDate)
+          : new Date();
+
+        if (endDate <= startDate) {
+          alert("Recurring end date must be after the start date");
+          return;
+        }
+      }
+    }
+
+    try {
+      const taskData: Partial<TaskData> = {
+        text: trimmedText,
+        priority: newTask.priority,
+        category: newTask.category,
+        timeEstimate: newTask.timeEstimate,
+        taskTime: newTask.taskTime,
+        dueDate: newTask.dueDate,
+        recurring: newTask.recurring || undefined,
+      };
+
+      await TaskService.updateTask(editingTask.id, taskData);
+      await loadTasks();
+
+      setEditingTask(null);
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      alert("Failed to update task");
     }
   };
 
@@ -373,7 +566,7 @@ export default function TasksScreen() {
     }
     try {
       await Promise.all(
-        selectedRecurringTasks.map((taskId) => TaskService.deleteTask(taskId))
+        selectedRecurringTasks.map((taskId) => TaskService.deleteTask(taskId)),
       );
       await loadTasks();
       setShowDeleteRecurringConfirm(false);
@@ -388,7 +581,7 @@ export default function TasksScreen() {
     setSelectedRecurringTasks((prev) =>
       prev.includes(taskId)
         ? prev.filter((id) => id !== taskId)
-        : [...prev, taskId]
+        : [...prev, taskId],
     );
   };
 
@@ -396,7 +589,7 @@ export default function TasksScreen() {
     try {
       if (resetType === "date") {
         await TaskService.deleteTasksForDate(
-          viewMode === "calendar" ? selectedDate : new Date()
+          viewMode === "calendar" ? selectedDate : new Date(),
         );
       } else {
         await TaskService.deleteAllTasks();
@@ -418,6 +611,13 @@ export default function TasksScreen() {
   const getCalendarDays = () => {
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
+
+    // Validate year and month
+    if (year < 1900 || year > 2100) {
+      console.error("Year out of valid range");
+      return [];
+    }
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startDayOfWeek = firstDay.getDay();
@@ -425,8 +625,8 @@ export default function TasksScreen() {
 
     const days: (Date | null)[] = [];
 
-    // Add empty cells for days before month starts
-    for (let i = 0; i < startDayOfWeek; i++) {
+    // Add empty cells for days before month starts (max 6)
+    for (let i = 0; i < Math.min(startDayOfWeek, 6); i++) {
       days.push(null);
     }
 
@@ -439,6 +639,10 @@ export default function TasksScreen() {
   };
 
   const formatDate = (date: Date) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
+
     const months = [
       "Jan",
       "Feb",
@@ -453,22 +657,70 @@ export default function TasksScreen() {
       "Nov",
       "Dec",
     ];
-    return `${
-      months[date.getMonth()]
-    } ${date.getDate()}, ${date.getFullYear()}`;
+
+    try {
+      return `${
+        months[date.getMonth()]
+      } ${date.getDate()}, ${date.getFullYear()}`;
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
   };
 
   const changeMonth = (direction: number) => {
+    if (!direction || (direction !== 1 && direction !== -1)) {
+      console.error("Invalid direction for month change");
+      return;
+    }
+
     const newDate = new Date(selectedDate);
-    newDate.setMonth(newDate.getMonth() + direction);
+    const currentYear = newDate.getFullYear();
+    const currentMonth = newDate.getMonth();
+    const targetMonth = currentMonth + direction;
+
+    // Calculate target year after month change
+    const targetYear = currentYear + Math.floor(targetMonth / 12);
+
+    // Prevent going too far in past or future
+    const futureLimit = new Date().getFullYear() + 5;
+    const pastLimit = new Date().getFullYear() - 5;
+
+    if (targetYear > futureLimit || targetYear < pastLimit) {
+      alert("Cannot navigate beyond 5 years from current year");
+      return;
+    }
+
+    newDate.setMonth(targetMonth);
+
+    // Validate the resulting date is valid
+    if (isNaN(newDate.getTime())) {
+      console.error("Invalid date after month change");
+      return;
+    }
+
     setSelectedDate(newDate);
   };
 
   const formatDuration = (minutes: number) => {
+    if (typeof minutes !== "number" || isNaN(minutes) || minutes < 0) {
+      return "0m";
+    }
+
+    if (minutes === 0) {
+      return "0m";
+    }
+
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) return `${hours}h ${mins}m`;
-    return `${mins}m`;
+    const mins = Math.floor(minutes % 60);
+
+    if (hours > 0 && mins > 0) {
+      return `${hours}h ${mins}m`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else {
+      return `${mins}m`;
+    }
   };
 
   return (
@@ -481,29 +733,20 @@ export default function TasksScreen() {
         ]}
       >
         <View style={styles.headerTop}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>Tasks</Text>
             <Text style={styles.headerSubtitle}>
               {activeTasks.length} active · {formatDuration(totalTimeToday)}{" "}
               today
             </Text>
           </View>
-          <View style={styles.headerActions}>
-            <View style={styles.stats}>
-              <Text style={styles.statValue}>{completionRate}%</Text>
-              <Text style={styles.statLabel}>Done</Text>
-            </View>
+          <View style={styles.headerRight}>
             <TouchableOpacity
               onPress={handleOpenDeleteRecurring}
               style={styles.iconButton}
+              activeOpacity={0.7}
             >
-              <Ionicons name="repeat" size={20} color="#FF4444" />
-              <Ionicons
-                name="trash-outline"
-                size={12}
-                color="#FF4444"
-                style={{ position: "absolute", bottom: 2, right: 2 }}
-              />
+              <Ionicons name="repeat" size={18} color="#FF4444" />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -511,9 +754,32 @@ export default function TasksScreen() {
                 setShowResetConfirm(true);
               }}
               style={styles.iconButton}
+              activeOpacity={0.7}
             >
-              <Ionicons name="refresh" size={20} color="#FFAA00" />
+              <Ionicons name="refresh" size={18} color="#FFAA00" />
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Stats Cards Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statCardValue}>
+              {isLoadingTasks ? "--" : `${completionRate}%`}
+            </Text>
+            <Text style={styles.statCardLabel}>Completed</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statCardValue}>
+              {isLoadingTasks ? "--" : activeTasks.length}
+            </Text>
+            <Text style={styles.statCardLabel}>Active</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statCardValue}>
+              {isLoadingTasks ? "--" : formatDuration(totalTimeToday)}
+            </Text>
+            <Text style={styles.statCardLabel}>Today</Text>
           </View>
         </View>
 
@@ -545,12 +811,19 @@ export default function TasksScreen() {
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
-          { paddingBottom: bottomSpacing },
+          { paddingBottom: bottomSpacing + QUICK_ADD_HEIGHT + 20 },
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Loading State */}
+        {isLoadingTasks && (
+          <View style={styles.loadingState}>
+            <Text style={styles.loadingText}>Loading tasks...</Text>
+          </View>
+        )}
+
         {/* Calendar View */}
-        {viewMode === "calendar" && (
+        {!isLoadingTasks && viewMode === "calendar" && (
           <View style={styles.calendarSection}>
             <View style={styles.calendarHeader}>
               <TouchableOpacity
@@ -747,8 +1020,8 @@ export default function TasksScreen() {
         )}
       </ScrollView>
 
-      {/* Quick Add Bar */}
-      <View style={[styles.quickAddBar, { bottom: systemBottomOffset }]}>
+      {/* Quick Add Bar - Above navbar */}
+      <View style={[styles.quickAddBar, { bottom: quickAddBarBottom }]}>
         <TouchableOpacity
           onPress={() => {
             // Reset to empty task
@@ -985,7 +1258,7 @@ export default function TasksScreen() {
                           const minutes = selectedDate.getMinutes();
                           const timeString = `${String(hours).padStart(
                             2,
-                            "0"
+                            "0",
                           )}:${String(minutes).padStart(2, "0")}`;
                           setNewTask({ ...newTask, taskTime: timeString });
                         }
@@ -1168,7 +1441,7 @@ export default function TasksScreen() {
                               newTask.recurring?.weekdays || [];
                             const newWeekdays = isSelected
                               ? currentWeekdays.filter(
-                                  (d: number) => d !== index
+                                  (d: number) => d !== index,
                                 )
                               : [...currentWeekdays, index].sort();
                             setNewTask({
@@ -1221,7 +1494,7 @@ export default function TasksScreen() {
                               newTask.recurring?.weekdays || [];
                             const newWeekdays = isSelected
                               ? currentWeekdays.filter(
-                                  (d: number) => d !== index
+                                  (d: number) => d !== index,
                                 )
                               : [...currentWeekdays, index].sort();
                             setNewTask({
@@ -1549,7 +1822,7 @@ export default function TasksScreen() {
                           const minutes = selectedDate.getMinutes();
                           const timeString = `${String(hours).padStart(
                             2,
-                            "0"
+                            "0",
                           )}:${String(minutes).padStart(2, "0")}`;
                           setNewTask({ ...newTask, taskTime: timeString });
                         }
@@ -1751,7 +2024,7 @@ export default function TasksScreen() {
                           setSelectedRecurringTasks([]);
                         } else {
                           setSelectedRecurringTasks(
-                            recurringTasks.map((t) => t.id)
+                            recurringTasks.map((t) => t.id),
                           );
                         }
                       }}
@@ -1866,6 +2139,22 @@ export default function TasksScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Bottom Navigation */}
+      <BottomNavBar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab === "home") (navigation as any).navigate("Home");
+          else if (tab === "focus") (navigation as any).navigate("FocusTimer");
+          else if (tab === "stats") (navigation as any).navigate("Stats");
+        }}
+        themeColors={{
+          textPrimary: "#FFFFFF",
+          textTertiary: "rgba(255, 255, 255, 0.5)",
+          navBackground: "rgba(4, 4, 4, 0.3)",
+        }}
+      />
     </View>
   );
 }
@@ -2030,24 +2319,62 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 50,
-    paddingBottom: 16,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(0, 0, 0, 0.98)",
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: 24,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   headerTitle: {
     fontFamily: "ZenDots-Regular",
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: "300",
     color: "#FFFFFF",
-    marginBottom: 4,
+    letterSpacing: -0.5,
+    marginBottom: 6,
   },
   headerSubtitle: {
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.6)",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    alignItems: "center",
+  },
+  statCardValue: {
+    fontFamily: "ZenDots-Regular",
+    fontSize: 24,
+    color: "#FFFFFF",
+    marginBottom: 6,
+  },
+  statCardLabel: {
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   stats: {
     alignItems: "center",
@@ -2070,33 +2397,39 @@ const styles = StyleSheet.create({
   },
   viewSelector: {
     flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderRadius: 14,
     padding: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   viewButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: "center",
-    borderRadius: 8,
+    borderRadius: 10,
   },
   viewButtonActive: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   viewButtonText: {
     fontSize: 13,
     color: "rgba(255, 255, 255, 0.5)",
     fontWeight: "500",
+    letterSpacing: 0.3,
   },
   viewButtonTextActive: {
     color: "#FFFFFF",
+    fontWeight: "600",
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   matrixSection: {
     marginBottom: 24,
@@ -2105,11 +2438,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   matrixQuadrant: {
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   matrixHeader: {
     flexDirection: "row",
@@ -2269,24 +2602,43 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.4)",
     marginTop: 8,
   },
+  loadingState: {
+    paddingVertical: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.5)",
+    fontWeight: "400",
+  },
   quickAddBar: {
     position: "absolute",
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.98)",
+    height: 80,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
+    backdropFilter: "blur(20px)",
   },
   quickAddButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 16,
     paddingVertical: 14,
     gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   quickAddText: {
     color: "#FFFFFF",
@@ -2696,14 +3048,16 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
   },
   iconButton: {
-    padding: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   taskActions: {
     flexDirection: "row",

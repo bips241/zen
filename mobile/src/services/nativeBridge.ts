@@ -126,7 +126,8 @@ export const launcher = {
   },
 
   /**
-   * Get all installed apps
+   * Get all installed apps - OPTIMIZED (without icons)
+   * Icons loaded separately for instant performance
    */
   async getInstalledApps(): Promise<InstalledApp[]> {
     if (Platform.OS !== "android") return [];
@@ -137,6 +138,39 @@ export const launcher = {
     } catch (error) {
       console.error("[launcher] Error getting installed apps:", error);
       return [];
+    }
+  },
+
+  /**
+   * Get app icons in batch - OPTIMIZED with native caching
+   * Fetches icons only when needed
+   */
+  async getAppIconsBatch(
+    packageNames: string[],
+  ): Promise<Record<string, string>> {
+    if (Platform.OS !== "android") return {};
+    if (!isNativeModuleAvailable("ZenLauncher")) return {};
+
+    try {
+      return await zenLauncher.getAppIconsBatch(packageNames);
+    } catch (error) {
+      console.error("[launcher] Error getting app icons batch:", error);
+      return {};
+    }
+  },
+
+  /**
+   * Clear native icon cache to free memory
+   */
+  async clearIconCache(): Promise<boolean> {
+    if (Platform.OS !== "android") return false;
+    if (!isNativeModuleAvailable("ZenLauncher")) return false;
+
+    try {
+      return await zenLauncher.clearIconCache();
+    } catch (error) {
+      console.error("[launcher] Error clearing icon cache:", error);
+      return false;
     }
   },
 

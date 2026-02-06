@@ -7,3 +7,4 @@
 
 export * from "./atoms";
 export * from "./molecules";
+export { default as SnowyForestBackground } from "./SnowyForestBackground";

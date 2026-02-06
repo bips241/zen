@@ -13,20 +13,19 @@ import {
   Dimensions,
   Animated,
   Easing,
-  AppState,
-  AppStateStatus,
   DeviceEventEmitter,
 } from "react-native";
-import { Video, ResizeMode } from "expo-av";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
 import { Text } from "../components/atoms";
-import { colors } from "../theme";
 import { launcher } from "../services/nativeBridge";
 import { appDetector } from "../services/appDetector";
 import { useStore } from "../store";
 import { useThemeStore } from "../store/themeStore";
 import { useSystemInsets } from "../hooks/useSystemInsets";
+import SnowyForestBackground from "../components/SnowyForestBackground";
+import BottomNavBar from "../components/molecules/BottomNavBar";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -51,23 +50,9 @@ export default function HomeShell({ navigation }: HomeShellProps) {
   const [dialerApp, setDialerApp] = useState<string>("");
   const [messagesApp, setMessagesApp] = useState<string>("");
   const [activeTab, setActiveTab] = useState("home");
-  const [showNavAfterWake, setShowNavAfterWake] = useState(true);
-
-  // Video playback state
-  const videoRef = useRef<Video>(null);
-  const [videoReady, setVideoReady] = useState(false);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const [videoOpacity] = useState(new Animated.Value(1));
 
   // Theme store
   const activeTheme = useThemeStore((state) => state.activeTheme);
-  const screensaverEnabled = useThemeStore((state) => state.screensaverEnabled);
-  const screensaverTimeout = useThemeStore((state) => state.screensaverTimeout);
-
-  // Reset video ready state on theme change
-  useEffect(() => {
-    setVideoReady(false);
-  }, [activeTheme.id]);
 
   // Dynamic theme colors based on active theme
   const getThemeColors = () => {
@@ -105,8 +90,7 @@ export default function HomeShell({ navigation }: HomeShellProps) {
   const themeColors = getThemeColors();
 
   // Dynamic system insets monitoring
-  const { navBarHeight, isNavBarVisible, isKeyboardVisible } =
-    useSystemInsets();
+  const { navBarHeight, isNavBarVisible } = useSystemInsets();
 
   // Safe navbar height with default
   const safeNavBarHeight =
@@ -122,21 +106,6 @@ export default function HomeShell({ navigation }: HomeShellProps) {
   const isHydrated = useStore((state) => state.isHydrated);
   const hydrateFromDatabase = useStore((state) => state.hydrateFromDatabase);
   const checkAndResetDaily = useStore((state) => state.checkAndResetDaily);
-
-  // Log when todayMinutes changes
-  useEffect(() => {
-    console.log("[HomeShell] todayMinutes updated:", todayMinutes);
-  }, [todayMinutes]);
-
-  // Log system UI changes
-  useEffect(() => {
-    console.log(
-      "[HomeShell] System UI changed - NavBar:",
-      safeNavBarHeight,
-      "px, Visible:",
-      isNavBarVisible,
-    );
-  }, [safeNavBarHeight, isNavBarVisible]);
 
   // Hydrate from database on mount
   useEffect(() => {
@@ -155,12 +124,6 @@ export default function HomeShell({ navigation }: HomeShellProps) {
         ]);
         setDialerApp(dialer);
         setMessagesApp(messages);
-        console.log(
-          "[HomeShell] Detected apps - Dialer:",
-          dialer,
-          "Messages:",
-          messages,
-        );
       } catch (error) {
         console.error("[HomeShell] App detection failed:", error);
       }
@@ -192,17 +155,13 @@ export default function HomeShell({ navigation }: HomeShellProps) {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const circleAnim = useRef(new Animated.Value(0)).current;
-  const navBarAnim = useRef(new Animated.Value(1)).current;
 
-  // Handle nav bar visibility based on system navbar
-  useEffect(() => {
-    Animated.timing(navBarAnim, {
-      toValue: isNavBarVisible ? 0 : 1,
-      duration: 200,
-      useNativeDriver: true,
-      easing: Easing.ease,
-    }).start();
-  }, [isNavBarVisible]);
+  // Update active tab when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      setActiveTab("home");
+    }, []),
+  );
 
   useEffect(() => {
     launcher.hideSystemUI();
@@ -210,33 +169,15 @@ export default function HomeShell({ navigation }: HomeShellProps) {
     return () => clearInterval(hideInterval);
   }, []);
 
-  // Native screen on/off listener
+  // Start screen listener on mount
   useEffect(() => {
-    // Start listening for screen events
     launcher
       .startScreenListener()
       .catch((err: unknown) =>
         console.error("[HomeShell] Failed to start screen listener:", err),
       );
 
-    const onScreenOn = DeviceEventEmitter.addListener("onScreenOn", () => {
-      console.log("[HomeShell] Screen turned ON - hiding nav");
-      setShowNavAfterWake(false);
-
-      // Show navigation after 2 seconds delay
-      setTimeout(() => {
-        console.log("[HomeShell] Showing navigation after screen on delay");
-        setShowNavAfterWake(true);
-      }, 2000);
-    });
-
-    const onScreenOff = DeviceEventEmitter.addListener("onScreenOff", () => {
-      console.log("[HomeShell] Screen turned OFF");
-    });
-
     return () => {
-      onScreenOn.remove();
-      onScreenOff.remove();
       launcher
         .stopScreenListener()
         .catch((err: unknown) =>
@@ -314,11 +255,6 @@ export default function HomeShell({ navigation }: HomeShellProps) {
       console.error("Navigation to Tratak failed:", error);
     }
   };
-
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 100],
-    outputRange: ["0%", "100%"],
-  });
 
   // Circular progress calculation
   const radius = 50;
@@ -420,30 +356,7 @@ export default function HomeShell({ navigation }: HomeShellProps) {
     <View style={styles.container}>
       {/* Background - Video or OLED Black */}
       {activeTheme.type === "video" && activeTheme.localPath ? (
-        <Animated.View
-          style={[styles.backgroundVideo, { opacity: videoOpacity }]}
-        >
-          <Video
-            key={activeTheme.id}
-            ref={videoRef}
-            source={{ uri: activeTheme.localPath }}
-            style={styles.backgroundVideo}
-            resizeMode={ResizeMode.COVER}
-            isLooping
-            isMuted
-            shouldPlay={true}
-            useNativeControls={false}
-            progressUpdateIntervalMillis={500}
-            onLoad={() => {
-              console.log("[HomeShell] Video loaded and ready");
-              setVideoReady(true);
-            }}
-            onError={(error) => {
-              console.error("[HomeShell] Video error:", error);
-              setVideoReady(false);
-            }}
-          />
-        </Animated.View>
+        <SnowyForestBackground theme={activeTheme} />
       ) : (
         <View style={styles.background} />
       )}
@@ -533,7 +446,7 @@ export default function HomeShell({ navigation }: HomeShellProps) {
                 cx="60"
                 cy="60"
                 r={radius}
-                stroke="rgba(255, 255, 255, 0.1)"
+                stroke="rgba(255, 255, 255, 0.24)"
                 strokeWidth={strokeWidth}
                 fill="none"
               />
@@ -552,6 +465,7 @@ export default function HomeShell({ navigation }: HomeShellProps) {
                 strokeLinecap="round"
                 rotation="-90"
                 origin="60, 60"
+                opacity={0.95}
               />
             </Svg>
             <View style={styles.circularProgressContent}>
@@ -680,105 +594,23 @@ export default function HomeShell({ navigation }: HomeShellProps) {
       </Animated.View>
 
       {/* Bottom Navigation */}
-      <Animated.View
-        style={[
-          styles.bottomNavigation,
-          {
-            bottom: safeNavBarHeight,
-            opacity: showNavAfterWake ? navBarAnim : 0,
-            transform: [
-              {
-                translateY: navBarAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [100, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <View style={dynamicStyles.navBackground} />
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setActiveTab("home")}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={activeTab === "home" ? "home" : "home-outline"}
-            size={18}
-            color={
-              activeTab === "home"
-                ? themeColors.textPrimary
-                : themeColors.textTertiary
-            }
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => {
-            setActiveTab("tasks");
-            navigation.navigate("Tasks");
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={activeTab === "tasks" ? "checkbox" : "checkbox-outline"}
-            size={18}
-            color={
-              activeTab === "tasks"
-                ? themeColors.textPrimary
-                : themeColors.textTertiary
-            }
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => {
-            setActiveTab("focus");
-            navigation.navigate("FocusTimer");
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={activeTab === "focus" ? "timer" : "timer-outline"}
-            size={18}
-            color={
-              activeTab === "focus"
-                ? themeColors.textPrimary
-                : themeColors.textTertiary
-            }
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => {
-            setActiveTab("stats");
-            navigation.navigate("Stats");
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={activeTab === "stats" ? "stats-chart" : "stats-chart-outline"}
-            size={18}
-            color={
-              activeTab === "stats"
-                ? themeColors.textPrimary
-                : themeColors.textTertiary
-            }
-          />
-        </TouchableOpacity>
-      </Animated.View>
+      <BottomNavBar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab === "tasks") navigation.navigate("Tasks");
+          else if (tab === "focus") navigation.navigate("FocusTimer");
+          else if (tab === "stats") navigation.navigate("Stats");
+        }}
+        themeColors={themeColors}
+      />
 
       {/* Quick Actions - Above bottom nav */}
       <Animated.View
         style={[
           styles.quickActionsContainer,
           {
-            bottom: safeNavBarHeight + 140,
-            opacity: showNavAfterWake ? 1 : 0,
+            bottom: "15%",
           },
         ]}
       >
@@ -900,6 +732,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 16,
     color: "#FFFFFF",
+    fontWeight: "500",
+    textShadowColor: "rgba(255, 255, 255, 0.3)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
 
   trackerContent: {
@@ -928,13 +764,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
     color: "#FFFFFF",
-    fontWeight: "300",
+    fontWeight: "600",
+    textShadowColor: "rgba(255, 255, 255, 0.4)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
 
   progressSubtext: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 1)",
     marginTop: 2,
+    fontWeight: "500",
   },
 
   trackerStats: {
@@ -960,14 +800,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: "#FFFFFF",
-    fontWeight: "300",
+    fontWeight: "500",
+    textShadowColor: "rgba(255, 255, 255, 0.3)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
 
   statLabel: {
     fontSize: 8,
-    color: "rgba(255, 255, 255, 0.5)",
+    color: "rgba(255, 255, 255, 1)",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    fontWeight: "500",
   },
 
   statDivider: {
@@ -986,9 +830,9 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 10,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "rgba(255, 255, 255, 0.85)",
     letterSpacing: 1.5,
-    fontWeight: "400",
+    fontWeight: "600",
     marginBottom: 12,
   },
 
@@ -1020,38 +864,5 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH - 20,
     bottom: 160,
     height: 72,
-  },
-
-  // Bottom Navigation
-  bottomNavigation: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 20,
-    paddingBottom: 0,
-  },
-
-  navItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    zIndex: 1,
-  },
-
-  navLabel: {
-    fontSize: 11,
-    color: "rgba(255, 255, 255, 0.5)",
-    fontWeight: "400",
-  },
-
-  navLabelActive: {
-    color: "#FFFFFF",
-    fontWeight: "500",
   },
 });
