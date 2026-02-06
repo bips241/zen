@@ -5,18 +5,14 @@
     "name": "FocusShell",
     "slug": "focusshell",
     "version": "0.1.0",
-    "platforms": [
-      "android"
-    ],
+    "platforms": ["android"],
     "sdkVersion": "48.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/ZEN.png",
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "android": {
       "package": "com.anonymous.focusshell",
       "icon": "./src/assets/ZEN.png",

@@ -3,10 +3,10 @@
  * Black & White Theme with smooth animations
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
-import Text from './Text';
-import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
+import React, { useEffect, useRef } from "react";
+import { View, StyleSheet, Animated, Easing } from "react-native";
+import Text from "./Text";
+import Svg, { Rect, Line, Text as SvgText } from "react-native-svg";
 
 interface BarData {
   label: string;
@@ -33,9 +33,7 @@ export default function BarChart({
   showGrid = true,
   maxValue,
 }: BarChartProps) {
-  const animations = useRef(
-    data.map(() => new Animated.Value(0))
-  ).current;
+  const animations = useRef(data.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     // Stagger the bar animations
@@ -46,13 +44,13 @@ export default function BarChart({
         delay: index * 80,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
-      })
+      }),
     );
 
     Animated.parallel(animationSequence).start();
   }, [data]);
 
-  const max = maxValue || Math.max(...data.map(d => d.value), 1);
+  const max = maxValue || Math.max(...data.map((d) => d.value), 1);
   const barWidth = (width - 60) / data.length;
   const chartHeight = height - 40;
   const padding = { top: 10, bottom: 30, left: 40, right: 20 };
@@ -61,17 +59,18 @@ export default function BarChart({
     <View style={styles.container}>
       <Svg width={width} height={height}>
         {/* Grid lines */}
-        {showGrid && [0, 0.25, 0.5, 0.75, 1].map((percent, i) => (
-          <Line
-            key={`grid-${i}`}
-            x1={padding.left}
-            y1={padding.top + chartHeight * percent}
-            x2={width - padding.right}
-            y2={padding.top + chartHeight * percent}
-            stroke="rgba(255,255,255,0.1)"
-            strokeWidth="1"
-          />
-        ))}
+        {showGrid &&
+          [0, 0.25, 0.5, 0.75, 1].map((percent, i) => (
+            <Line
+              key={`grid-${i}`}
+              x1={padding.left}
+              y1={padding.top + chartHeight * percent}
+              x2={width - padding.right}
+              y2={padding.top + chartHeight * percent}
+              stroke="rgba(255,255,255,0.1)"
+              strokeWidth="1"
+            />
+          ))}
 
         {/* Y-axis labels */}
         {[0, 0.25, 0.5, 0.75, 1].map((percent, i) => {
@@ -110,7 +109,7 @@ export default function BarChart({
                   inputRange: [0, 1],
                   outputRange: [0, barHeight],
                 })}
-                fill={item.highlighted ? '#FFFFFF' : 'rgba(255,255,255,0.3)'}
+                fill={item.highlighted ? "#FFFFFF" : "rgba(255,255,255,0.3)"}
                 rx={3}
               />
 
@@ -118,9 +117,9 @@ export default function BarChart({
               <SvgText
                 x={x + barActualWidth / 2}
                 y={height - padding.bottom + 18}
-                fill={item.highlighted ? '#FFFFFF' : 'rgba(255,255,255,0.6)'}
+                fill={item.highlighted ? "#FFFFFF" : "rgba(255,255,255,0.6)"}
                 fontSize="11"
-                fontWeight={item.highlighted ? 'bold' : 'normal'}
+                fontWeight={item.highlighted ? "bold" : "normal"}
                 textAnchor="middle"
               >
                 {item.label}
@@ -149,7 +148,7 @@ export default function BarChart({
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

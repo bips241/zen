@@ -3,10 +3,10 @@
  * For category breakdown visualization
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
-import Text from './Text';
-import Svg, { G, Path } from 'react-native-svg';
+import React, { useEffect, useRef } from "react";
+import { View, StyleSheet, Animated, Easing } from "react-native";
+import Text from "./Text";
+import Svg, { G, Path } from "react-native-svg";
 
 interface PieData {
   label: string;
@@ -29,9 +29,7 @@ export default function PieChart({
   innerRadius = 0.5,
   showLegend = true,
 }: PieChartProps) {
-  const animations = useRef(
-    data.map(() => new Animated.Value(0))
-  ).current;
+  const animations = useRef(data.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     const animationSequence = data.map((_, index) =>
@@ -41,7 +39,7 @@ export default function PieChart({
         delay: index * 100,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
-      })
+      }),
     );
 
     Animated.parallel(animationSequence).start();
@@ -55,7 +53,7 @@ export default function PieChart({
     startAngle: number,
     endAngle: number,
     outerRadius: number,
-    innerRadius: number
+    innerRadius: number,
   ): string => {
     const startRad = (startAngle * Math.PI) / 180;
     const endRad = (endAngle * Math.PI) / 180;
@@ -96,7 +94,7 @@ export default function PieChart({
               const angle = (item.percentage / 100) * 360;
               const endAngle = currentAngle + angle;
               const path = createArc(currentAngle, endAngle, radius, innerR);
-              
+
               const animatedPath = animations[index].interpolate({
                 inputRange: [0, 1],
                 outputRange: [
@@ -119,7 +117,7 @@ export default function PieChart({
             })}
           </G>
         </Svg>
-        
+
         {/* Center label */}
         <View style={styles.centerLabel}>
           <Text style={styles.centerTitle}>Total</Text>
@@ -153,35 +151,35 @@ export default function PieChart({
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   chartContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   centerLabel: {
-    position: 'absolute',
-    alignItems: 'center',
+    position: "absolute",
+    alignItems: "center",
   },
   centerTitle: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.5)',
-    textTransform: 'uppercase',
+    color: "rgba(255, 255, 255, 0.5)",
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
   centerValue: {
     fontSize: 24,
-    fontWeight: '300',
-    color: '#FFFFFF',
+    fontWeight: "300",
+    color: "#FFFFFF",
     marginTop: 4,
   },
   legend: {
     marginTop: 20,
-    width: '100%',
+    width: "100%",
   },
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
     paddingHorizontal: 16,
   },
@@ -194,10 +192,10 @@ const styles = StyleSheet.create({
   legendLabel: {
     flex: 1,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   legendValue: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: "rgba(255, 255, 255, 0.6)",
   },
 });

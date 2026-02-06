@@ -82,9 +82,11 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
         clearTimeout(batchTimeout.current);
       }
       // Clear native icon cache to free memory
-      launcher.clearIconCache().catch((err) =>
-        console.warn('[AppDrawer] Failed to clear native cache:', err)
-      );
+      launcher
+        .clearIconCache()
+        .catch((err) =>
+          console.warn("[AppDrawer] Failed to clear native cache:", err),
+        );
     };
   }, []);
 
@@ -123,8 +125,12 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
       setFilteredApps(appsWithCachedIcons);
       setLoading(false);
 
-      const cachedCount = appsWithCachedIcons.filter(a => a.iconLoaded).length;
-      console.log(`[AppDrawer] ✅ Loaded ${sortedApps.length} apps instantly! (${cachedCount} icons from cache)`);
+      const cachedCount = appsWithCachedIcons.filter(
+        (a) => a.iconLoaded,
+      ).length;
+      console.log(
+        `[AppDrawer] ✅ Loaded ${sortedApps.length} apps instantly! (${cachedCount} icons from cache)`,
+      );
     } catch (error) {
       console.error("[AppDrawer] Error loading apps:", error);
       setLoading(false);
@@ -134,84 +140,89 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
   /**
    * OPTIMIZATION 2: Lazy load icons in batches as user scrolls
    */
-  const loadIconsForApps = useCallback(async (packageNames: string[]) => {
-    if (packageNames.length === 0) return;
+  const loadIconsForApps = useCallback(
+    async (packageNames: string[]) => {
+      if (packageNames.length === 0) return;
 
-    // Filter out already loaded icons (deduplication)
-    const newPackages = packageNames.filter(
-      (pkg) => !loadedIcons.current.has(pkg)
-    );
-    if (newPackages.length === 0) return;
+      // Filter out already loaded icons (deduplication)
+      const newPackages = packageNames.filter(
+        (pkg) => !loadedIcons.current.has(pkg),
+      );
+      if (newPackages.length === 0) return;
 
-    // Add to queue
-    newPackages.forEach((pkg) => iconLoadQueue.current.add(pkg));
+      // Add to queue
+      newPackages.forEach((pkg) => iconLoadQueue.current.add(pkg));
 
-    // Clear existing timeout
-    if (batchTimeout.current) {
-      clearTimeout(batchTimeout.current);
-    }
-
-    // Load icons immediately (no debounce for instant display)
-    batchTimeout.current = setTimeout(async () => {
-      if (isLoadingBatch.current || iconLoadQueue.current.size === 0) return;
-
-      isLoadingBatch.current = true;
-      setLoadingIcons(true);
-
-      try {
-        const packagesToLoad = Array.from(iconLoadQueue.current);
-        iconLoadQueue.current.clear();
-
-        console.log(`[AppDrawer] 🎨 Loading ${packagesToLoad.length} icons...`);
-
-        // Fetch icons from native in batch (already grayscale from native)
-        const iconsBatch = await launcher.getAppIconsBatch(packagesToLoad);
-
-        // 🚀 CACHE IMMEDIATELY - Icons are already grayscale from native!
-        const iconsToCache = Object.entries(iconsBatch)
-          .filter(([_, icon]) => icon && icon.length > 0)
-          .map(([packageName, icon]) => {
-            const app = apps.find(a => a.packageName === packageName);
-            return {
-              packageName,
-              appName: app?.appName || packageName,
-              processedIcon: icon // Already grayscale!
-            };
-          });
-        
-        if (iconsToCache.length > 0) {
-          iconCacheService.cacheIcons(iconsToCache).catch(err => {
-            console.warn('[AppDrawer] Failed to cache icons:', err);
-          });
-        }
-
-        // Update apps with loaded icons
-        setApps((prevApps) =>
-          prevApps.map((app) => {
-            if (iconsBatch[app.packageName]) {
-              // Mark as loaded
-              loadedIcons.current.add(app.packageName);
-              return {
-                ...app,
-                icon: iconsBatch[app.packageName],
-                iconLoaded: true,
-              };
-            }
-            return app;
-          }),
-        );
-
-        console.log(
-          `[AppDrawer] ✅ Loaded ${Object.keys(iconsBatch).length} icons`,
-        );
-      } catch (error) {
-        console.error("[AppDrawer] Error loading icon batch:", error);
-      } finally {
-        isLoadingBatch.current = false;
-        setLoadingIcons(false);
+      // Clear existing timeout
+      if (batchTimeout.current) {
+        clearTimeout(batchTimeout.current);
       }
-    }, 1); // 1ms = instant (allows batching within single frame)
-  }, [apps]);
+
+      // Load icons immediately (no debounce for instant display)
+      batchTimeout.current = setTimeout(async () => {
+        if (isLoadingBatch.current || iconLoadQueue.current.size === 0) return;
+
+        isLoadingBatch.current = true;
+        setLoadingIcons(true);
+
+        try {
+          const packagesToLoad = Array.from(iconLoadQueue.current);
+          iconLoadQueue.current.clear();
+
+          console.log(
+            `[AppDrawer] 🎨 Loading ${packagesToLoad.length} icons...`,
+          );
+
+          // Fetch icons from native in batch (already grayscale from native)
+          const iconsBatch = await launcher.getAppIconsBatch(packagesToLoad);
+
+          // 🚀 CACHE IMMEDIATELY - Icons are already grayscale from native!
+          const iconsToCache = Object.entries(iconsBatch)
+            .filter(([_, icon]) => icon && icon.length > 0)
+            .map(([packageName, icon]) => {
+              const app = apps.find((a) => a.packageName === packageName);
+              return {
+                packageName,
+                appName: app?.appName || packageName,
+                processedIcon: icon, // Already grayscale!
+              };
+            });
+
+          if (iconsToCache.length > 0) {
+            iconCacheService.cacheIcons(iconsToCache).catch((err) => {
+              console.warn("[AppDrawer] Failed to cache icons:", err);
+            });
+          }
+
+          // Update apps with loaded icons
+          setApps((prevApps) =>
+            prevApps.map((app) => {
+              if (iconsBatch[app.packageName]) {
+                // Mark as loaded
+                loadedIcons.current.add(app.packageName);
+                return {
+                  ...app,
+                  icon: iconsBatch[app.packageName],
+                  iconLoaded: true,
+                };
+              }
+              return app;
+            }),
+          );
+
+          console.log(
+            `[AppDrawer] ✅ Loaded ${Object.keys(iconsBatch).length} icons`,
+          );
+        } catch (error) {
+          console.error("[AppDrawer] Error loading icon batch:", error);
+        } finally {
+          isLoadingBatch.current = false;
+          setLoadingIcons(false);
+        }
+      }, 1); // 1ms = instant (allows batching within single frame)
+    },
+    [apps],
+  );
 
   /**
    * OPTIMIZATION 3: Load icons for visible items only
@@ -268,91 +279,94 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
     setViewMode(viewMode === "grid" ? "list" : "grid");
   };
 
-  const renderApp = useCallback(({ item, index }: { item: AppWithIcon; index: number }) => {
-    if (viewMode === "grid") {
+  const renderApp = useCallback(
+    ({ item, index }: { item: AppWithIcon; index: number }) => {
+      if (viewMode === "grid") {
+        return (
+          <Animated.View
+            style={[
+              styles.appItemGrid,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => handleLaunchApp(item)}
+              activeOpacity={0.7}
+              style={styles.appItemContent}
+            >
+              {item.iconLoaded && item.icon ? (
+                <CachedAppIcon
+                  packageName={item.packageName}
+                  appName={item.appName}
+                  icon={item.icon}
+                  size={64}
+                  grayscale={true}
+                />
+              ) : (
+                <View style={styles.iconPlaceholder}>
+                  <Text variant="caption" style={styles.iconPlaceholderText}>
+                    {item.appName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <Text variant="body" style={styles.appNameGrid} numberOfLines={1}>
+                {item.appName}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        );
+      }
+
+      // List view
       return (
         <Animated.View
           style={[
-            styles.appItemGrid,
+            styles.appItemList,
             {
               opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
+              transform: [
+                {
+                  translateX: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-30, 0],
+                  }),
+                },
+              ],
             },
           ]}
         >
           <TouchableOpacity
             onPress={() => handleLaunchApp(item)}
             activeOpacity={0.7}
-            style={styles.appItemContent}
+            style={styles.appItemListContent}
           >
             {item.iconLoaded && item.icon ? (
               <CachedAppIcon
                 packageName={item.packageName}
                 appName={item.appName}
                 icon={item.icon}
-                size={64}
+                size={48}
                 grayscale={true}
               />
             ) : (
-              <View style={styles.iconPlaceholder}>
+              <View style={[styles.iconPlaceholder, { width: 48, height: 48 }]}>
                 <Text variant="caption" style={styles.iconPlaceholderText}>
                   {item.appName.charAt(0).toUpperCase()}
                 </Text>
               </View>
             )}
-            <Text variant="body" style={styles.appNameGrid} numberOfLines={1}>
+            <Text variant="body" style={styles.appNameList} numberOfLines={1}>
               {item.appName}
             </Text>
           </TouchableOpacity>
         </Animated.View>
       );
-    }
-
-    // List view
-    return (
-      <Animated.View
-        style={[
-          styles.appItemList,
-          {
-            opacity: fadeAnim,
-            transform: [
-              {
-                translateX: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-30, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => handleLaunchApp(item)}
-          activeOpacity={0.7}
-          style={styles.appItemListContent}
-        >
-          {item.iconLoaded && item.icon ? (
-            <CachedAppIcon
-              packageName={item.packageName}
-              appName={item.appName}
-              icon={item.icon}
-              size={48}
-              grayscale={true}
-            />
-          ) : (
-            <View style={[styles.iconPlaceholder, { width: 48, height: 48 }]}>
-              <Text variant="caption" style={styles.iconPlaceholderText}>
-                {item.appName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <Text variant="body" style={styles.appNameList} numberOfLines={1}>
-            {item.appName}
-          </Text>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  }, [viewMode, fadeAnim, scaleAnim, handleLaunchApp]);
+    },
+    [viewMode, fadeAnim, scaleAnim, handleLaunchApp],
+  );
 
   if (loading) {
     return (

@@ -45,7 +45,7 @@ function CachedAppIcon({
   grayscale = true,
 }: CachedAppIconProps) {
   const [iconError, setIconError] = useState(false);
-  
+
   // BLAZING FAST: If icon is provided (from cache or native), use it directly!
   // No async operations, no delays, no duplicate checks
   const processedIcon = icon || null;
@@ -54,9 +54,10 @@ function CachedAppIcon({
   useEffect(() => {
     if (icon && !processingQueue.has(packageName)) {
       processingQueue.add(packageName);
-      
+
       // Cache asynchronously (doesn't block rendering)
-      iconCacheService.cacheIcon(packageName, appName, icon)
+      iconCacheService
+        .cacheIcon(packageName, appName, icon)
         .catch(() => {}) // Silent fail
         .finally(() => processingQueue.delete(packageName));
     }
@@ -96,7 +97,9 @@ function CachedAppIcon({
       resizeMode="cover"
       fadeDuration={0} // Instant rendering
       onError={() => {
-        console.warn(`[CachedAppIcon] Failed to render icon for ${packageName}`);
+        console.warn(
+          `[CachedAppIcon] Failed to render icon for ${packageName}`,
+        );
         setIconError(true); // Show placeholder on error
       }}
     />
