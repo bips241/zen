@@ -184,8 +184,7 @@ export const launcher = {
       // Handle intent URIs (tel:, sms:, phone:, etc.)
       if (packageName.startsWith("intent:")) {
         const { Linking } = await import("react-native");
-        const intentType = packageName.replace("intent:", "");
-        const intentUrl = `${intentType}:`;
+        const intentUrl = packageName.replace("intent:", "");
         const canOpen = await Linking.canOpenURL(intentUrl);
         if (canOpen) {
           await Linking.openURL(intentUrl);

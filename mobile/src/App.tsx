@@ -22,8 +22,11 @@ import { Text } from "./components";
 import { useFonts } from "expo-font";
 import { ZenDots_400Regular } from "@expo-google-fonts/zen-dots";
 import { overlay } from "./services/nativeBridge";
+import { useTransparentNavBar } from "./hooks/useTransparentNavBar";
 
 export default function App() {
+  useTransparentNavBar();
+
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigationRef = useRef<any>(null);

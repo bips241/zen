@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   Animated,
   Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Text } from "../components/atoms";
 import { useNavigation } from "@react-navigation/native";
 
 export default function BackupRestoreScreen() {
@@ -25,6 +26,12 @@ export default function BackupRestoreScreen() {
     }).start();
   }, []);
 
+  useEffect(() => {
+    AsyncStorage.getItem("@zen_last_backup_time").then((time) => {
+      if (time) setLastBackup(time);
+    });
+  }, []);
+
   const handleBackup = () => {
     Alert.alert(
       "Create Backup",
@@ -33,9 +40,19 @@ export default function BackupRestoreScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Backup Now",
-          onPress: () => {
-            // TODO: Implement BackupModule.createBackup()
-            Alert.alert("Success", "Backup created successfully!");
+          onPress: async () => {
+            try {
+              const allKeys = await AsyncStorage.getAllKeys();
+              const stores = await AsyncStorage.multiGet(allKeys);
+              const backupData = JSON.stringify(stores);
+              const now = new Date().toLocaleString();
+              await AsyncStorage.setItem("@zen_backup_data", backupData);
+              await AsyncStorage.setItem("@zen_last_backup_time", now);
+              setLastBackup(now);
+              Alert.alert("Success", "Backup created successfully!");
+            } catch (err) {
+              Alert.alert("Error", "Failed to create backup.");
+            }
           },
         },
       ]
@@ -51,9 +68,21 @@ export default function BackupRestoreScreen() {
         {
           text: "Restore",
           style: "destructive",
-          onPress: () => {
-            // TODO: Implement BackupModule.restoreBackup()
-            Alert.alert("Success", "Data restored successfully!");
+          onPress: async () => {
+            try {
+              const backupData = await AsyncStorage.getItem("@zen_backup_data");
+              if (!backupData) {
+                Alert.alert("No Backup Found", "There is no saved backup to restore.");
+                return;
+              }
+              const stores: [string, string | null][] = JSON.parse(backupData);
+              await AsyncStorage.multiSet(
+                stores.filter(([_, v]) => v !== null) as [string, string][]
+              );
+              Alert.alert("Success", "Data restored successfully!");
+            } catch (err) {
+              Alert.alert("Error", "Failed to restore backup.");
+            }
           },
         },
       ]

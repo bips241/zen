@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   Dimensions,
   ActivityIndicator,
 } from "react-native";
+import { Text } from "../components/atoms";
 import { useNavigation } from "@react-navigation/native";
 import { useThemeStore } from "../store/themeStore";
 import { Theme } from "../types/theme";

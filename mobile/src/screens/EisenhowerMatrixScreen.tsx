@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   Modal,
   Dimensions,
 } from "react-native";
+import { Text } from "../components/atoms";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { database } from "../database";

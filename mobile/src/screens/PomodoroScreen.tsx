@@ -80,11 +80,10 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
+    if (isRunning) {
       interval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            handlePhaseComplete();
             return 0;
           }
           return prev - 1;
@@ -92,7 +91,13 @@ export default function PomodoroScreen({ navigation }: PomodoroScreenProps) {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft]);
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (isRunning && timeLeft === 0) {
+      handlePhaseComplete();
+    }
+  }, [timeLeft, isRunning]);
 
   // Update progress animation
   useEffect(() => {

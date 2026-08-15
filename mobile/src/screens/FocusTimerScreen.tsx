@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
   Easing,
   Dimensions,
 } from "react-native";
+import { Text } from "../components/atoms";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../store";

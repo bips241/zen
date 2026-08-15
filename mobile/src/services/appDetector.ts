@@ -180,25 +180,25 @@ class AppDetectorService {
    * Generic app detection from a list of variants
    */
   private async detectApp(variants: string[]): Promise<string> {
-    // First try intent-based approaches (most reliable)
+    // Check specific package names first (e.g. Google Dialer, Samsung Dialer)
+    for (const packageName of variants) {
+      if (!packageName.startsWith("intent:")) {
+        const installed = await this.isAppInstalled(packageName);
+        if (installed) {
+          console.log(`[AppDetector] Detected installed app: ${packageName}`);
+          return packageName;
+        }
+      }
+    }
+
+    // Fallback to intent if no specific package is installed
     for (const variant of variants) {
       if (variant.startsWith("intent:")) {
         return variant;
       }
     }
 
-    // Then check each package in order
-    for (const packageName of variants) {
-      const installed = await this.isAppInstalled(packageName);
-      if (installed) {
-        console.log(`[AppDetector] Detected app: ${packageName}`);
-        return packageName;
-      }
-    }
-
-    // Fallback to first non-intent variant
     const fallback = variants.find((v) => !v.startsWith("intent:"));
-    console.warn(`[AppDetector] No app detected, using fallback: ${fallback}`);
     return fallback || variants[0];
   }
 

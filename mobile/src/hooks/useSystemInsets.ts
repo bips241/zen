@@ -12,18 +12,11 @@
  * - Event-driven updates
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { NativeModules, NativeEventEmitter, Platform } from "react-native";
 import { useSafeAreaInsets as useSafeAreaInsetsRN } from "react-native-safe-area-context";
 
 const { SystemUIModule } = NativeModules;
-
-// Debug: Log all available native modules
-console.log(
-  "[useSystemInsets] Available native modules:",
-  Object.keys(NativeModules).sort().join(", "),
-);
-console.log("[useSystemInsets] SystemUIModule exists?", !!SystemUIModule);
 
 export interface SystemInsets {
   navBarBottom: number;
@@ -60,32 +53,32 @@ const DEFAULT_INSETS: SystemInsets = {
 let cachedInsets: SystemInsets | null = null;
 
 export function useSystemInsets() {
-  const [insets, setInsets] = useState<SystemInsets>(DEFAULT_INSETS);
-  const [isMonitoring, setIsMonitoring] = useState(false);
+  // ✅ Use cachedInsets as initial value — after first session, this is already correct
+  // so the component renders with the right navBarHeight from frame 1 on unlock
+  const [insets, setInsets] = useState<SystemInsets>(cachedInsets ?? DEFAULT_INSETS);
   const rnSafeAreaInsets = useSafeAreaInsetsRN(); // Fallback
+  // Ref so the fallback branch can read the latest safe-area values without
+  // re-registering the native emitter every time they change
+  const rnInsetsRef = useRef(rnSafeAreaInsets);
+  rnInsetsRef.current = rnSafeAreaInsets;
 
   useEffect(() => {
     // Fallback to react-native-safe-area-context if SystemUIModule not available
     if (Platform.OS !== "android" || !SystemUIModule) {
-      console.warn(
-        "[useSystemInsets] SystemUIModule not available - using SafeAreaInsets fallback",
-      );
-
-      // Map SafeAreaInsets to SystemInsets format
+      const sa = rnInsetsRef.current;
       setInsets({
-        navBarBottom: rnSafeAreaInsets.bottom,
-        navBarTop: rnSafeAreaInsets.top,
-        navBarLeft: rnSafeAreaInsets.left,
-        navBarRight: rnSafeAreaInsets.right,
-        statusBarTop: rnSafeAreaInsets.top,
-        systemBarsBottom: rnSafeAreaInsets.bottom,
-        systemBarsTop: rnSafeAreaInsets.top,
+        navBarBottom: sa.bottom,
+        navBarTop: sa.top,
+        navBarLeft: sa.left,
+        navBarRight: sa.right,
+        statusBarTop: sa.top,
+        systemBarsBottom: sa.bottom,
+        systemBarsTop: sa.top,
         keyboardHeight: 0,
         keyboardVisible: false,
-        navBarVisible: rnSafeAreaInsets.bottom > 0,
-        statusBarVisible: rnSafeAreaInsets.top > 0,
+        navBarVisible: sa.bottom > 0,
+        statusBarVisible: sa.top > 0,
       });
-
       return;
     }
 
@@ -95,26 +88,17 @@ export function useSystemInsets() {
     const insetsListener = eventEmitter.addListener(
       "onWindowInsetsChanged",
       (data: SystemInsets) => {
-        // Silent insets update (reduce log noise)
-        // console.log("[useSystemInsets] Insets changed:", data);
         setInsets(data);
-        cachedInsets = data; // Update cache
+        cachedInsets = data;
       },
     );
 
     // Start monitoring
     SystemUIModule.startMonitoring()
-      .then(() => {
-        // console.log("[useSystemInsets] Monitoring started");
-        setIsMonitoring(true);
-
-        // Get initial insets
-        return SystemUIModule.getCurrentInsets();
-      })
+      .then(() => SystemUIModule.getCurrentInsets())
       .then((currentInsets: SystemInsets) => {
-        // console.log("[useSystemInsets] Initial insets:", currentInsets);
         setInsets(currentInsets);
-        cachedInsets = currentInsets; // Cache for next render
+        cachedInsets = currentInsets;
       })
       .catch((error: Error) => {
         console.error("[useSystemInsets] Failed to start monitoring:", error);
@@ -123,22 +107,16 @@ export function useSystemInsets() {
     // Cleanup
     return () => {
       insetsListener.remove();
-      SystemUIModule.stopMonitoring()
-        .then(() => {
-          // console.log("[useSystemInsets] Monitoring stopped");
-          setIsMonitoring(false);
-        })
-        .catch((error: Error) => {
-          console.error("[useSystemInsets] Failed to stop monitoring:", error);
-        });
+      SystemUIModule.stopMonitoring().catch((error: Error) => {
+        console.error("[useSystemInsets] Failed to stop monitoring:", error);
+      });
     };
-  }, [rnSafeAreaInsets]); // Re-run when SafeAreaInsets change
+  }, []); // ✅ Empty deps: native emitter registered once, never torn down on safe-area changes
 
   const refresh = useCallback(async () => {
     if (Platform.OS !== "android" || !SystemUIModule) {
       return;
     }
-
     try {
       const currentInsets = await SystemUIModule.getCurrentInsets();
       setInsets(currentInsets);
@@ -149,7 +127,6 @@ export function useSystemInsets() {
 
   return {
     insets,
-    isMonitoring,
     refresh,
     // Convenience properties with safe defaults
     navBarHeight: insets.navBarBottom || 0,

@@ -7,7 +7,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -17,6 +16,7 @@ import {
   Dimensions,
   Platform,
 } from "react-native";
+import { Text } from "../components/atoms";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";

@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
   Easing,
   ScrollView,
 } from "react-native";
+import { Text } from "../components/atoms";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../store";
 
@@ -41,32 +41,6 @@ export default function DeepWorkScreen() {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleSessionComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft]);
-
-  useEffect(() => {
-    const progress = ((initialTime - timeLeft) / initialTime) * 100;
-    Animated.timing(progressAnim, {
-      toValue: progress,
-      duration: 500,
-      easing: Easing.linear,
-      useNativeDriver: false,
-    }).start();
-  }, [timeLeft, initialTime]);
-
   const handleSessionComplete = async () => {
     setIsRunning(false);
     const minutes = Math.floor(initialTime / 60);
@@ -77,6 +51,27 @@ export default function DeepWorkScreen() {
     const dayRefreshTime = useStore.getState().preferences.dayRefreshTime;
     await useStore.getState().addFocusMinutes(minutes, dayRefreshTime);
   };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRunning) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (isRunning && timeLeft === 0) {
+      handleSessionComplete();
+    }
+  }, [timeLeft, isRunning]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);

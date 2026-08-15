@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { Text } from "../components/atoms";
 import { colors, spacing } from "../theme";
+import { overlay } from "../services/nativeBridge";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CIRCLE_SIZE = SCREEN_WIDTH * 0.6;
@@ -105,10 +106,16 @@ export default function FrictionOverlay({
     }
   };
 
-  const handleGrantTime = (minutes: number) => {
+  const handleGrantTime = async (minutes: number) => {
     // Grant temporary access for specified minutes
-    console.log(`Granting ${minutes} minutes access`);
-    // TODO: Implement temporary bypass in OverlayService
+    console.log(`Granting ${minutes} minutes access to ${appName}`);
+    try {
+      if (overlay?.grantTemporaryBypass) {
+        await overlay.grantTemporaryBypass(route?.params?.packageName || "", minutes);
+      }
+    } catch (e) {
+      console.warn("[FrictionOverlay] Could not set temporary bypass:", e);
+    }
     if (navigation?.canGoBack()) {
       navigation.goBack();
     }

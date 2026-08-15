@@ -210,7 +210,7 @@ function FormWithKeyboard() {
 // ============================================================================
 
 function ManualRefreshExample() {
-  const { insets, refresh, isMonitoring } = useSystemInsets();
+  const { insets, refresh } = useSystemInsets();
 
   const handleRefresh = async () => {
     await refresh();
@@ -219,7 +219,7 @@ function ManualRefreshExample() {
 
   return (
     <View>
-      <Text>Monitoring: {isMonitoring ? "Active" : "Inactive"}</Text>
+      <Text>Monitoring: Active</Text>
       <Text>Nav Bar: {insets.navBarBottom}px</Text>
 
       <TouchableOpacity onPress={handleRefresh}>
@@ -234,7 +234,7 @@ function ManualRefreshExample() {
 // ============================================================================
 
 function SystemUIDebugger() {
-  const { insets, isMonitoring } = useSystemInsets();
+  const { insets } = useSystemInsets();
 
   return (
     <ScrollView style={{ padding: 16 }}>
@@ -242,7 +242,7 @@ function SystemUIDebugger() {
         System UI Debug Info
       </Text>
 
-      <Text>Monitoring: {isMonitoring ? "✓ Active" : "✗ Inactive"}</Text>
+      <Text>Monitoring: ✓ Active</Text>
       <Text>Nav Bar Bottom: {insets.navBarBottom}px</Text>
       <Text>Nav Bar Visible: {insets.navBarVisible ? "Yes" : "No"}</Text>
       <Text>Status Bar Top: {insets.statusBarTop}px</Text>

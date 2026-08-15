@@ -19,8 +19,19 @@
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/ZEN.png",
         "backgroundColor": "#000000"
-      }
+      },
+      "edgeToEdgeEnabled": true,
+      "navigationBarColor": "#00000000",
+      "predictiveBackGestureEnabled": true
     },
+    "plugins": [
+      [
+        "expo-navigation-bar",
+        {
+          "position": "absolute"
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "829597e0-b63d-494b-a63e-9ee2a021db6b"

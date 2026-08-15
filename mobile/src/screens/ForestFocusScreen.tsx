@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
   Easing,
   Dimensions,
 } from "react-native";
+import { Text } from "../components/atoms";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../store";
 import LottieView from "lottie-react-native";
@@ -93,11 +93,10 @@ export default function ForestFocusScreen() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
+    if (isRunning) {
       interval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            handleSessionComplete();
             return 0;
           }
           return prev - 1;
@@ -105,7 +104,13 @@ export default function ForestFocusScreen() {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft, handleSessionComplete]);
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (isRunning && timeLeft === 0) {
+      handleSessionComplete();
+    }
+  }, [timeLeft, isRunning, handleSessionComplete]);
 
   useEffect(() => {
     if (isRunning && timeLeft > 0) {

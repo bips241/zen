@@ -80,7 +80,9 @@ export default function BottomNavBar({
       style={[
         styles.bottomNavigation,
         {
-          bottom: safeNavBarHeight,
+          bottom: 0,
+          paddingBottom: safeNavBarHeight,
+          height: 40 + safeNavBarHeight,
           opacity: navBarAnim,
           transform: [
             {
@@ -178,7 +180,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    height: 40,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",

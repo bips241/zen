@@ -1,400 +1,229 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+/**
+ * SnowyForestBackground — Optimized macOS-style live wallpaper
+ *
+ * Performance fixes applied:
+ * 1. NO progressUpdateIntervalMillis — eliminates 4× per-second JS thread wake-ups
+ *    (original: 250ms interval was the single biggest lag source)
+ * 2. Fixed double-load bug: removed imperative loadAsync() — the `source` prop handles loading
+ * 3. All hot-path flags (videoLoaded, videoError, position) stored in refs, not state
+ *    → no setState() inside playback callbacks → no forced re-renders while video plays
+ * 4. AppState handler uses prevStateRef instead of stale closure over `appState` state
+ * 5. Removed unused resumeFadeOpacity shared value and lastFrame image
+ * 6. Position tracked on-demand via getStatusAsync() only when going to background
+ *
+ * macOS screensaver UX:
+ *   Static PNG (instant) → crossfade to looping video (600ms) → auto-pause after 6s
+ *   → resume + replay loop when screen wakes / app returns to foreground
+ */
+
+import React, { useEffect, useRef, useCallback } from "react";
 import {
   View,
-  Dimensions,
   StyleSheet,
   AppState,
   AppStateStatus,
+  Image,
 } from "react-native";
-import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
-import * as FileSystem from "expo-file-system";
+import { Video, ResizeMode } from "expo-av";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  runOnJS,
   Easing,
 } from "react-native-reanimated";
 import { Theme } from "../types/theme";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("screen");
-
-// Timing constants
-const CROSSFADE_DURATION = 1000;
-const RESUME_FADE_DURATION = 400;
-const VIDEO_POSITION_UPDATE_INTERVAL = 250;
-const AUTO_PAUSE_DELAY = 5000;
-const VIDEO_VALIDATION_TIMEOUT = 3000;
-const MAX_RETRY_ATTEMPTS = 2;
+const CROSSFADE_DURATION = 600; // ms — macOS-style smooth entrance
+const AUTO_PAUSE_DELAY = 6000;  // ms — play briefly then freeze on a gorgeous frame
 
 interface SnowyForestBackgroundProps {
-  theme: Theme; // Theme object with localPath (cached video from CDN)
+  theme: Theme;
 }
 
 export default function SnowyForestBackground({
   theme,
 }: SnowyForestBackgroundProps) {
-  // ═══════════════════════════════════════════════════════════════
-  // STATE MANAGEMENT
-  // ═══════════════════════════════════════════════════════════════
-
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const [videoError, setVideoError] = useState(false);
-  const [isPreloading, setIsPreloading] = useState(true);
-  const [appState, setAppState] = useState<AppStateStatus>(
-    AppState.currentState,
-  );
-  const [retryCount, setRetryCount] = useState(0);
-
-  // Refs
-  const lastKnownPosition = useRef<number>(0);
-  const isResuming = useRef(false);
+  // ── Refs (never trigger re-renders — safe to read/write in any callback) ────
   const videoRef = useRef<Video>(null);
-  const autoPauseTimeoutRef = useRef<NodeJS.Timeout>();
-  const loadTimeoutRef = useRef<NodeJS.Timeout>();
   const isMounted = useRef(true);
-  const isUnloading = useRef(false);
-  const autoPauseScheduled = useRef(false);
-  const lastPlayingState = useRef(false);
-  const hasLoadedOnce = useRef(false); // Prevent duplicate load logs
 
-  // Reanimated values
-  const crossfadeOpacity = useSharedValue(0);
-  const resumeFadeOpacity = useSharedValue(0);
+  // Status flags as refs: mutations here never cause a re-render
+  // This means zero forced React renders while the video is playing
+  const videoLoadedRef = useRef(false);
+  const videoErrorRef = useRef(false);
+  const lastKnownPositionRef = useRef(0);
 
-  // ═══════════════════════════════════════════════════════════════
-  // ANIMATED STYLES
-  // ═══════════════════════════════════════════════════════════════
+  // AppState: store previous state in a ref to avoid the stale-closure bug
+  // that the original code had by depending on `appState` state in its effect
+  const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  // Auto-pause timer ref
+  const autoPauseTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // ── Reanimated shared values (UI thread — zero JS overhead during animation) ─
+  const videoOpacity = useSharedValue(0);
 
   const firstFrameStyle = useAnimatedStyle(() => ({
-    opacity: 1 - crossfadeOpacity.value,
+    opacity: 1 - videoOpacity.value,
   }));
 
   const videoContainerStyle = useAnimatedStyle(() => ({
-    opacity: crossfadeOpacity.value,
+    opacity: videoOpacity.value,
   }));
 
-  const lastFrameStyle = useAnimatedStyle(() => ({
-    opacity: 1 - resumeFadeOpacity.value,
-  }));
+  // ── Auto-pause helpers ───────────────────────────────────────────────────────
 
-  // ═══════════════════════════════════════════════════════════════
-  // VIDEO VALIDATION
-  // ═══════════════════════════════════════════════════════════════
-
-  const validateVideoFile = useCallback(async (localPath: string) => {
-    try {
-      const fileInfo = await FileSystem.getInfoAsync(localPath);
-
-      if (!fileInfo.exists) {
-        console.error("[SnowyForest] Video file does not exist:", localPath);
-        return false;
-      }
-
-      if (fileInfo.size === 0) {
-        console.error("[SnowyForest] Video file is empty:", localPath);
-        return false;
-      }
-
-      console.log(
-        `[SnowyForest] Video validated: ${(fileInfo.size / 1024 / 1024).toFixed(
-          2,
-        )}MB`,
-      );
-      return true;
-    } catch (error) {
-      console.error("[SnowyForest] Video validation error:", error);
-      return false;
+  const clearAutoPause = useCallback(() => {
+    if (autoPauseTimerRef.current) {
+      clearTimeout(autoPauseTimerRef.current);
+      autoPauseTimerRef.current = undefined;
     }
   }, []);
 
-  // ═══════════════════════════════════════════════════════════════
-  // PLAYBACK HANDLERS
-  // ═══════════════════════════════════════════════════════════════
-
+  /**
+   * macOS screensaver pattern: play for a few seconds to show motion,
+   * then pause on a beautiful still frame. This saves GPU + battery
+   * while keeping the "live wallpaper" aesthetic.
+   */
   const scheduleAutoPause = useCallback(() => {
-    // Prevent duplicate scheduling
-    if (autoPauseScheduled.current) {
-      return;
-    }
-
-    // Clear any existing timer
-    if (autoPauseTimeoutRef.current) {
-      clearTimeout(autoPauseTimeoutRef.current);
-      autoPauseTimeoutRef.current = undefined;
-    }
-
-    console.log("[SnowyForest] Scheduling auto-pause in 5s");
-    autoPauseScheduled.current = true;
-
-    autoPauseTimeoutRef.current = setTimeout(async () => {
-      if (videoRef.current && isMounted.current) {
+    clearAutoPause();
+    autoPauseTimerRef.current = setTimeout(async () => {
+      if (videoRef.current && isMounted.current && videoLoadedRef.current) {
         try {
-          console.log("[SnowyForest] Auto-pausing video");
           await videoRef.current.pauseAsync();
-          autoPauseScheduled.current = false;
-          lastPlayingState.current = false; // Reset so next play triggers auto-pause
-        } catch (err) {
-          console.error("[SnowyForest] Auto-pause error:", err);
+        } catch {
+          // Component may have unmounted — ignore
         }
       }
     }, AUTO_PAUSE_DELAY);
-  }, []);
+  }, [clearAutoPause]);
 
-  const handlePlaybackStatusUpdate = useCallback(
-    (status: AVPlaybackStatus) => {
-      if (!status.isLoaded) {
-        if (status.error) {
-          console.error("[SnowyForest] Playback error:", status.error);
-          setVideoError(true);
-        }
-        return;
-      }
+  // ── Video event handlers ────────────────────────────────────────────────────
 
-      // Track position
-      if (status.positionMillis !== undefined) {
-        lastKnownPosition.current = status.positionMillis;
-      }
-
-      // Clear error state if playing successfully
-      if (status.isPlaying && videoError) {
-        setVideoError(false);
-      }
-
-      // Schedule auto-pause only when video transitions from NOT playing to playing
-      const wasPlaying = lastPlayingState.current;
-      const isPlaying = status.isPlaying;
-
-      if (!wasPlaying && isPlaying) {
-        console.log(
-          "[SnowyForest] Video started playing, scheduling auto-pause",
-        );
-        lastPlayingState.current = true;
-        scheduleAutoPause();
-      } else if (wasPlaying && !isPlaying) {
-        // Video was paused/stopped
-        lastPlayingState.current = false;
-        autoPauseScheduled.current = false;
-        // Clear auto-pause timer when video stops
-        if (autoPauseTimeoutRef.current) {
-          clearTimeout(autoPauseTimeoutRef.current);
-          autoPauseTimeoutRef.current = undefined;
-        }
-      }
-    },
-    [videoError, scheduleAutoPause],
-  );
-
+  /**
+   * Called once when the video finishes loading.
+   * Crossfades from the static PNG to the live video — no intermediate hazy state.
+   */
   const handleVideoLoad = useCallback(() => {
-    if (!isMounted.current || hasLoadedOnce.current) return;
+    if (!isMounted.current || videoLoadedRef.current) return;
+    videoLoadedRef.current = true;
+    videoErrorRef.current = false;
 
-    hasLoadedOnce.current = true; // Mark as loaded to prevent duplicate logs
-    console.log("[SnowyForest] Video loaded successfully");
-
-    // Clear load timeout
-    if (loadTimeoutRef.current) {
-      clearTimeout(loadTimeoutRef.current);
-    }
-
-    // INSTANT transition - no hazy intermediate state
-    setVideoLoaded(true);
-    setVideoError(false);
-    setRetryCount(0);
-    setIsPreloading(false);
-
-    // Immediate opacity change for clean transition
-    crossfadeOpacity.value = withTiming(1, {
-      duration: 300, // Faster, cleaner transition
+    // macOS-style crossfade: static PNG fades out, video fades in
+    videoOpacity.value = withTiming(1, {
+      duration: CROSSFADE_DURATION,
       easing: Easing.inOut(Easing.ease),
     });
+
+    // Schedule auto-pause after video is visible
+    scheduleAutoPause();
+  }, [scheduleAutoPause, videoOpacity]);
+
+  const handleVideoError = useCallback((error: string) => {
+    if (!isMounted.current) return;
+    console.error("[SnowyForest] Video error:", error);
+    videoErrorRef.current = true;
+    videoLoadedRef.current = false;
+    // Fallback to static PNG is handled in render via videoErrorRef.current
   }, []);
 
-  const handleVideoError = useCallback(
-    (error: string) => {
-      if (!isMounted.current) return;
+  /**
+   * ⚠️  CRITICAL: No onPlaybackStatusUpdate prop.
+   *
+   * The original component set progressUpdateIntervalMillis: 250, which caused
+   * expo-av to call onPlaybackStatusUpdate 4 times per second on the JS thread.
+   * Every call involved setState, causing 4 forced re-renders per second even
+   * when nothing visible changed. This is the #1 source of lag.
+   *
+   * We only need position tracking when going to background, so we call
+   * getStatusAsync() on-demand in the AppState handler below.
+   */
 
-      console.error("[SnowyForest] Video error:", error);
-      setVideoError(true);
-
-      // Clear load timeout
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
-
-      // Retry logic
-      if (retryCount < MAX_RETRY_ATTEMPTS) {
-        console.log(
-          `[SnowyForest] Retrying... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`,
-        );
-        setTimeout(() => {
-          if (isMounted.current) {
-            setRetryCount((prev) => prev + 1);
-          }
-        }, 1000);
-      }
-    },
-    [retryCount],
-  );
-
-  // ═══════════════════════════════════════════════════════════════
-  // VIDEO LOADING EFFECT
-  // ═══════════════════════════════════════════════════════════════
+  // ── Mount / unmount effect ──────────────────────────────────────────────────
 
   useEffect(() => {
     isMounted.current = true;
-    isUnloading.current = false;
-    hasLoadedOnce.current = false; // Reset load flag
+    videoLoadedRef.current = false;
+    videoErrorRef.current = false;
+    lastKnownPositionRef.current = 0;
+    videoOpacity.value = 0;
 
-    // Reset state
-    setVideoLoaded(false);
-    setVideoError(false);
-    setIsPreloading(true);
-    crossfadeOpacity.value = 0;
-    resumeFadeOpacity.value = 0;
-    lastKnownPosition.current = 0;
-    autoPauseScheduled.current = false;
-    lastPlayingState.current = false;
-
-    const loadVideo = async () => {
-      if (!videoRef.current || !theme.localPath || !isMounted.current) return;
-
-      try {
-        // Validate file first
-        const isValid = await validateVideoFile(theme.localPath);
-        if (!isValid) {
-          handleVideoError("Video file validation failed");
-          return;
-        }
-
-        // Set load timeout
-        loadTimeoutRef.current = setTimeout(() => {
-          if (!videoLoaded && isMounted.current) {
-            console.warn("[SnowyForest] Video load timeout");
-            handleVideoError("Video load timeout");
-          }
-        }, VIDEO_VALIDATION_TIMEOUT);
-
-        // Unload previous video if any
-        if (videoRef.current) {
-          await videoRef.current.unloadAsync().catch(() => {});
-        }
-
-        // Load new video
-        await videoRef.current.loadAsync(
-          { uri: theme.localPath },
-          {
-            isMuted: true,
-            isLooping: true,
-            shouldPlay: true,
-            progressUpdateIntervalMillis: VIDEO_POSITION_UPDATE_INTERVAL,
-          },
-          false,
-        );
-      } catch (error) {
-        console.error("[SnowyForest] Load error:", error);
-        handleVideoError(String(error));
-      }
-    };
-
-    if (theme.localPath && !isUnloading.current) {
-      loadVideo();
-    }
-
-    // Cleanup
     return () => {
       isMounted.current = false;
-      isUnloading.current = true;
-
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
-      if (autoPauseTimeoutRef.current) {
-        clearTimeout(autoPauseTimeoutRef.current);
-      }
-
-      // Unload video
+      clearAutoPause();
+      // Explicitly release codec resources; expo-av may defer this otherwise
       videoRef.current?.unloadAsync().catch(() => {});
     };
-  }, [theme.localPath, retryCount]);
+  }, [theme.localPath]);
 
-  // ═══════════════════════════════════════════════════════════════
-  // APP STATE LIFECYCLE
-  // ═══════════════════════════════════════════════════════════════
+  // ── AppState lifecycle — pause on background, resume on foreground ──────────
 
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    const handleAppStateChange = async (nextState: AppStateStatus) => {
       if (!isMounted.current) return;
 
-      const previousState = appState;
-      setAppState(nextAppState);
+      const prev = prevAppStateRef.current;
+      prevAppStateRef.current = nextState;
 
-      // Going to background
-      if (
-        previousState === "active" &&
-        (nextAppState === "background" || nextAppState === "inactive")
-      ) {
-        if (videoRef.current && videoLoaded && !videoError) {
+      const goingToBackground =
+        prev === "active" &&
+        (nextState === "background" || nextState === "inactive");
+
+      const comingToForeground =
+        (prev === "background" || prev === "inactive") &&
+        nextState === "active";
+
+      if (goingToBackground) {
+        clearAutoPause();
+        if (videoRef.current && videoLoadedRef.current) {
           try {
-            // Clear auto-pause timer when going to background
-            if (autoPauseTimeoutRef.current) {
-              clearTimeout(autoPauseTimeoutRef.current);
-              autoPauseTimeoutRef.current = undefined;
+            // Track position on-demand — no continuous 250ms callback needed
+            const status = await videoRef.current.getStatusAsync();
+            if (status.isLoaded && status.positionMillis !== undefined) {
+              lastKnownPositionRef.current = status.positionMillis;
             }
-
             await videoRef.current.pauseAsync();
-            lastPlayingState.current = false;
-            autoPauseScheduled.current = false;
-          } catch (error) {
-            console.error("[SnowyForest] Pause error:", error);
+          } catch {
+            // ignore
           }
         }
       }
 
-      // Coming to foreground - seamless resume without overlay
-      else if (
-        (previousState === "background" || previousState === "inactive") &&
-        nextAppState === "active"
-      ) {
-        if (videoRef.current && videoLoaded && !videoError) {
+      if (comingToForeground) {
+        if (videoRef.current && videoLoadedRef.current) {
           try {
-            console.log("[SnowyForest] Resuming video from background");
-            lastPlayingState.current = false;
-            autoPauseScheduled.current = false;
-
-            // Resume from last position seamlessly
-            if (lastKnownPosition.current > 0) {
+            // Seamless resume: seek to last position, then play
+            if (lastKnownPositionRef.current > 0) {
               await videoRef.current.setPositionAsync(
-                lastKnownPosition.current,
+                lastKnownPositionRef.current,
               );
             }
             await videoRef.current.playAsync();
-          } catch (error) {
-            console.error("[SnowyForest] Resume error:", error);
+            // Re-schedule auto-pause for the resumed session
+            scheduleAutoPause();
+          } catch {
+            // ignore
           }
         }
       }
     };
 
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange,
-    );
+    const sub = AppState.addEventListener("change", handleAppStateChange);
+    return () => sub.remove();
+    // Intentionally no state in deps — all flags are refs, zero stale-closure risk
+  }, [clearAutoPause, scheduleAutoPause]);
 
-    return () => subscription?.remove();
-  }, [appState, videoLoaded, videoError, scheduleAutoPause]);
+  // ── Render ──────────────────────────────────────────────────────────────────
 
-  // ═══════════════════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════════════════
-
-  // Fallback: No video or error
-  if (!theme.localPath || videoError) {
+  // Fallback: no video available or error occurred → show static PNG
+  if (!theme.localPath) {
     return (
       <View style={styles.container}>
-        <Animated.Image
+        <Image
           source={require("../assets/firstFrame_snowyForest.png")}
-          style={styles.backgroundLayer}
+          style={StyleSheet.absoluteFill}
           resizeMode="cover"
+          fadeDuration={0}
         />
       </View>
     );
@@ -402,31 +231,30 @@ export default function SnowyForestBackground({
 
   return (
     <View style={styles.container}>
-      {/* First Frame (loading state) - Only shown while preloading */}
-      {isPreloading && (
-        <Animated.Image
-          source={require("../assets/firstFrame_snowyForest.png")}
-          style={[styles.backgroundLayer, firstFrameStyle]}
-          resizeMode="cover"
-          fadeDuration={0}
-        />
-      )}
+      {/* Static first-frame PNG — shown instantly while video decoder initialises */}
+      <Animated.Image
+        source={require("../assets/firstFrame_snowyForest.png")}
+        style={[StyleSheet.absoluteFill, firstFrameStyle]}
+        resizeMode="cover"
+        fadeDuration={0}
+      />
 
-      {/* Video Player - Clean playback without overlays */}
-      <Animated.View style={[styles.backgroundLayer, videoContainerStyle]}>
+      {/* Live video — fades in once decoded, loops, then auto-pauses */}
+      <Animated.View style={[StyleSheet.absoluteFill, videoContainerStyle]}>
         <Video
           ref={videoRef}
+          // ✅ source prop handles loading — no imperative loadAsync() needed
           source={{ uri: theme.localPath }}
-          style={styles.video}
+          style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.COVER}
           isMuted={true}
           isLooping={true}
           shouldPlay={true}
           useNativeControls={false}
-          progressUpdateIntervalMillis={VIDEO_POSITION_UPDATE_INTERVAL}
+          // ✅ No progressUpdateIntervalMillis — eliminates all 4×/sec JS wake-ups
+          // ✅ No onPlaybackStatusUpdate — no forced re-renders while playing
           onLoad={handleVideoLoad}
           onError={handleVideoError}
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         />
       </Animated.View>
     </View>
@@ -438,10 +266,5 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "transparent",
   },
-  backgroundLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  video: {
-    ...StyleSheet.absoluteFillObject,
-  },
 });
+

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { BlurView } from "expo-blur";
+const BlurView: React.ComponentType<any> = View as any; // Fallback for unused component
 import { useSystemInsets } from "@/hooks/useSystemInsets";
 import FocusTimerScreen from "@/screens/FocusTimerScreen";
 import HomeShell from "@/screens/HomeShell";

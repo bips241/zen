@@ -237,4 +237,26 @@ export const overlay = {
       console.error("[overlay] Error getting pending trigger:", error);
       return { hasTrigger: false };
     }
-  },};
+  },
+
+  /**
+   * Temporary bypass access for specified minutes
+   */
+  async grantTemporaryBypass(packageName: string, minutes: number): Promise<boolean> {
+    if (Platform.OS !== "android") return false;
+    if (!isNativeModuleAvailable("ZenOverlay") || !overlayModule) {
+      return false;
+    }
+    try {
+      const moduleAny = overlayModule as any;
+      if (moduleAny.grantTemporaryBypass) {
+        const result = await moduleAny.grantTemporaryBypass(packageName, minutes);
+        return result?.success ?? true;
+      }
+      return true;
+    } catch (error) {
+      console.error("[overlay] Error granting bypass:", error);
+      return false;
+    }
+  },
+};

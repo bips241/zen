@@ -1020,7 +1020,8 @@ export default function StatsScreen({ navigation }: StatsScreenProps) {
         onTabChange={(tab) => {
           setActiveTab(tab);
           if (tab === "home") navigation.navigate("Home");
-          else if (tab === "settings") navigation.navigate("EnhancedSettings");
+          else if (tab === "tasks") navigation.navigate("Tasks");
+          else if (tab === "focus") navigation.navigate("FocusTimer");
         }}
         themeColors={{
           textPrimary: "#FFFFFF",

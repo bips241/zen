@@ -6,13 +6,8 @@
  */
 
 import React from "react";
-import { Animated, Easing } from "react-native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useSystemInsets } from "../hooks/useSystemInsets";
 import HomeShell from "../screens/HomeShell";
-import DashboardScreen from "../screens/dashboard/DashboardScreen";
 import AppDrawerScreen from "../screens/appDrawer/AppDrawerScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
 import TratakScreen from "../screens/TratakScreen";
@@ -33,7 +28,6 @@ import AppSelectionScreen from "../screens/AppSelectionScreen";
 import FrictionOverlay from "../screens/FrictionOverlay";
 import AmbientMusicScreen from "../screens/AmbientMusicScreen";
 import ThemeStoreScreen from "../screens/ThemeStoreScreen";
-import { colors } from "../theme";
 
 const Stack = createStackNavigator();
 

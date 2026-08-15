@@ -4,7 +4,7 @@
  * Styled text with typography variants
  */
 
-import React from "react";
+import React, { forwardRef } from "react";
 import {
   Text as RNText,
   TextProps as RNTextProps,
@@ -18,22 +18,25 @@ interface TextProps extends RNTextProps {
   children: React.ReactNode;
 }
 
-export default function Text({
+const Text = forwardRef<RNText, TextProps>(({
   variant = "body",
   color = colors.white,
   style,
   children,
   ...props
-}: TextProps) {
+}, ref) => {
   return (
     <RNText
+      ref={ref}
       style={[styles.base, typography[variant], { color }, style]}
       {...props}
     >
       {children}
     </RNText>
   );
-}
+});
+
+export default Text;
 
 const styles = StyleSheet.create({
   base: {

@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   Animated,
   Switch,
 } from "react-native";
+import { Text } from "../components/atoms";
 import { useNavigation } from "@react-navigation/native";
 
 interface SettingItem {

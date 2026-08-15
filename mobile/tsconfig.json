@@ -23,6 +23,6 @@
       "@native-android/*": ["native-android/*"]
     }
   },
-  "exclude": ["node_modules", "babel.config.js", "e2e"],
+  "exclude": ["node_modules", "babel.config.js", "e2e", "**/*_backup*"],
   "extends": "expo/tsconfig.base"
 }

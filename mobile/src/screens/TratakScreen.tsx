@@ -110,21 +110,21 @@ export default function TratakScreen() {
     let timer: NodeJS.Timeout | null = null;
     if (phase === "focusing") {
       timer = setInterval(() => {
-        setSeconds((s) => {
-          const newSeconds = s + 1;
-          // Complete when goal is reached
-          if (newSeconds >= goalMinutes * 60) {
-            setPhase("complete");
-            setTotalSessions((prev) => prev + 1);
-          }
-          return newSeconds;
-        });
+        setSeconds((s) => s + 1);
       }, 1000);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [phase, goalMinutes]);
+  }, [phase]);
+
+  // Check for goal completion
+  useEffect(() => {
+    if (phase === "focusing" && seconds >= goalMinutes * 60) {
+      setPhase("complete");
+      setTotalSessions((prev) => prev + 1);
+    }
+  }, [seconds, goalMinutes, phase]);
 
   // Hide instructions after 5 seconds when focusing
   useEffect(() => {

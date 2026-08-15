@@ -81,12 +81,6 @@ export default function AppDrawerScreen({ navigation }: AppDrawerScreenProps) {
       if (batchTimeout.current) {
         clearTimeout(batchTimeout.current);
       }
-      // Clear native icon cache to free memory
-      launcher
-        .clearIconCache()
-        .catch((err) =>
-          console.warn("[AppDrawer] Failed to clear native cache:", err),
-        );
     };
   }, []);
 

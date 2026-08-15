@@ -1,14 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { Text } from "../components/atoms";
+
+// Create animated version of custom Text for animated usage
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -102,13 +107,17 @@ export default function OnboardingScreen() {
     handleComplete();
   };
 
-  const handleComplete = () => {
-    // TODO: Set onboarding complete flag in AsyncStorage
-    // TODO: Request permissions (12 native modules)
-    // For now, navigate to Home
+  const handleComplete = async () => {
+    // Persist onboarding complete flag so it won't show again
+    try {
+      await AsyncStorage.setItem("@zen_onboarding_complete", "true");
+    } catch (e) {
+      // Non-fatal: app still works without this
+      console.warn("[Onboarding] Could not persist completion flag:", e);
+    }
     navigation.reset({
       index: 0,
-      routes: [{ name: "Main" as never }],
+      routes: [{ name: "Home" as never }],
     });
   };
 
@@ -120,7 +129,7 @@ export default function OnboardingScreen() {
   const currentSlideData = slides[currentSlide];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Skip Button */}
       <Animated.View style={[styles.skipContainer, { opacity: fadeAnim }]}>
         <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
@@ -164,7 +173,7 @@ export default function OnboardingScreen() {
           </Animated.View>
 
           {/* Title */}
-          <Animated.Text
+          <AnimatedText
             style={[
               styles.title,
               {
@@ -173,10 +182,10 @@ export default function OnboardingScreen() {
             ]}
           >
             {currentSlideData.title}
-          </Animated.Text>
+          </AnimatedText>
 
           {/* Description */}
-          <Animated.Text
+          <AnimatedText
             style={[
               styles.description,
               {
@@ -185,7 +194,7 @@ export default function OnboardingScreen() {
             ]}
           >
             {currentSlideData.description}
-          </Animated.Text>
+          </AnimatedText>
         </Animated.View>
       </View>
 
@@ -223,7 +232,7 @@ export default function OnboardingScreen() {
           <Text style={styles.nextButtonIcon}>›</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -232,7 +241,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000000",
     paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   skipContainer: {
     alignItems: "flex-end",
