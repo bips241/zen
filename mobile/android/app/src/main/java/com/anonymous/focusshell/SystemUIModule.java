@@ -183,19 +183,19 @@ public class SystemUIModule extends ReactContextBaseJavaModule {
      */
     private void setupWindowInsetsListener(View rootView) {
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-            // Get system bar insets
-            Insets systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            Insets navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
-            Insets statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            // Get system bar insets ignoring visibility so we always know their sizes
+            Insets systemBarsInsets = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars());
+            Insets navBarInsets = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars());
+            Insets statusBarInsets = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars());
             Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
             
             int navBarHeight = navBarInsets.bottom;
             int statusBarHeight = statusBarInsets.top;
-            boolean navBarVisible = navBarHeight > 0;
+            boolean navBarVisible = insets.isVisible(WindowInsetsCompat.Type.navigationBars());
             boolean keyboardVisible = imeInsets.bottom > 0;
             
-            Log.d(TAG, String.format("WindowInsets received - NavBar: %dpx, StatusBar: %dpx, IME: %dpx",
-                navBarHeight, statusBarHeight, imeInsets.bottom));
+            Log.d(TAG, String.format("WindowInsets received - NavBar: %dpx, StatusBar: %dpx, IME: %dpx, Visible: %b",
+                navBarHeight, statusBarHeight, imeInsets.bottom, navBarVisible));
             
             // Only send event if values changed
             if (navBarHeight != lastNavBarHeight || 
@@ -257,9 +257,9 @@ public class SystemUIModule extends ReactContextBaseJavaModule {
             // API 30+ (Android 11+)
             WindowInsets insets = rootView.getRootWindowInsets();
             if (insets != null) {
-                android.graphics.Insets navBar = insets.getInsets(WindowInsets.Type.navigationBars());
-                android.graphics.Insets statusBar = insets.getInsets(WindowInsets.Type.statusBars());
-                android.graphics.Insets systemBars = insets.getInsets(WindowInsets.Type.systemBars());
+                android.graphics.Insets navBar = insets.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars());
+                android.graphics.Insets statusBar = insets.getInsetsIgnoringVisibility(WindowInsets.Type.statusBars());
+                android.graphics.Insets systemBars = insets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars());
                 android.graphics.Insets ime = insets.getInsets(WindowInsets.Type.ime());
                 
                 result.putInt("navBarBottom", navBar.bottom);
@@ -275,8 +275,8 @@ public class SystemUIModule extends ReactContextBaseJavaModule {
                 result.putInt("keyboardHeight", ime.bottom);
                 result.putBoolean("keyboardVisible", ime.bottom > 0);
                 
-                result.putBoolean("navBarVisible", navBar.bottom > 0);
-                result.putBoolean("statusBarVisible", statusBar.top > 0);
+                result.putBoolean("navBarVisible", insets.isVisible(WindowInsets.Type.navigationBars()));
+                result.putBoolean("statusBarVisible", insets.isVisible(WindowInsets.Type.statusBars()));
             } else {
                 return createEmptyInsets();
             }
@@ -284,9 +284,9 @@ public class SystemUIModule extends ReactContextBaseJavaModule {
             // API < 30: Use AndroidX compat
             WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(rootView);
             if (insets != null) {
-                Insets navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
-                Insets statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars());
-                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                Insets navBar = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars());
+                Insets statusBar = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars());
+                Insets systemBars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars());
                 Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
                 
                 result.putInt("navBarBottom", navBar.bottom);
@@ -302,8 +302,8 @@ public class SystemUIModule extends ReactContextBaseJavaModule {
                 result.putInt("keyboardHeight", ime.bottom);
                 result.putBoolean("keyboardVisible", ime.bottom > 0);
                 
-                result.putBoolean("navBarVisible", navBar.bottom > 0);
-                result.putBoolean("statusBarVisible", statusBar.top > 0);
+                result.putBoolean("navBarVisible", insets.isVisible(WindowInsetsCompat.Type.navigationBars()));
+                result.putBoolean("statusBarVisible", insets.isVisible(WindowInsetsCompat.Type.statusBars()));
             } else {
                 return createEmptyInsets();
             }

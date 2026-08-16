@@ -7,6 +7,8 @@
     <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
     <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
     <item name="android:statusBarColor">@android:color/transparent</item>
+    <!-- Make navigation bar transparent at the theme level — prevents opaque flash before JS fires -->
+    <item name="android:navigationBarColor">@android:color/transparent</item>
     <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
     <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
   </style>

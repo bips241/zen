@@ -14,6 +14,8 @@ import {
   Animated,
   Easing,
   DeviceEventEmitter,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -24,6 +26,8 @@ import { appDetector } from "../services/appDetector";
 import { useStore } from "../store";
 import { useThemeStore } from "../store/themeStore";
 import { useSystemInsets } from "../hooks/useSystemInsets";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import SnowyForestBackground from "../components/SnowyForestBackground";
 import BottomNavBar from "../components/molecules/BottomNavBar";
 
@@ -90,11 +94,63 @@ export default function HomeShell({ navigation }: HomeShellProps) {
   const themeColors = getThemeColors();
 
   // Dynamic system insets monitoring
+  const insets = useSafeAreaInsets();
+  const safeBottom = Math.max(insets.bottom, 0);
   const { navBarHeight, isNavBarVisible } = useSystemInsets();
+  const safeNavBarHeight = typeof navBarHeight === "number" && !isNaN(navBarHeight) ? navBarHeight : 0;
+  const [isWakeActive, setIsWakeActive] = useState(false);
+  const quickActionsShift = useRef(new Animated.Value(0)).current;
 
-  // Safe navbar height with default
-  const safeNavBarHeight =
-    typeof navBarHeight === "number" && !isNaN(navBarHeight) ? navBarHeight : 0;
+  // Monitor AppState lifecycle for lockscreen wakeup sync (matches BottomNavBar)
+  useEffect(() => {
+    let dismissTimer: NodeJS.Timeout | null = null;
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === "background") {
+        setIsWakeActive(true);
+        if (dismissTimer) clearTimeout(dismissTimer);
+      } else if (nextAppState === "active") {
+        dismissTimer = setTimeout(() => {
+          setIsWakeActive(false);
+        }, 3700);
+      }
+    };
+
+    const sub = AppState.addEventListener("change", handleAppStateChange);
+
+    if (AppState.currentState === "active") {
+      setIsWakeActive(true);
+      dismissTimer = setTimeout(() => {
+        setIsWakeActive(false);
+      }, 3700);
+    }
+
+    return () => {
+      sub.remove();
+      if (dismissTimer) clearTimeout(dismissTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const activeHeight = safeNavBarHeight > 0 ? safeNavBarHeight : 48;
+    const isShowing = isNavBarVisible || isWakeActive;
+    
+    // Match the BottomNavBar translation exactly (activeHeight - safeBottom)
+    const targetOffset = isShowing ? -(Math.max(activeHeight, safeBottom) - safeBottom) : 0;
+
+    // Apply translation INSTANTLY (0ms) when entering wake/lock state to prevent flash,
+    // but slide back down/up smoothly on interactive swipes
+    const duration = isWakeActive ? 0 : 200;
+
+    Animated.timing(quickActionsShift, {
+      toValue: targetOffset,
+      duration: duration,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [isNavBarVisible, isWakeActive, safeNavBarHeight, safeBottom]);
+
+
 
   // Connect to store
   const todayMinutes = useStore((state) => state.todayMinutes);
@@ -610,7 +666,8 @@ export default function HomeShell({ navigation }: HomeShellProps) {
         style={[
           styles.quickActionsContainer,
           {
-            bottom: "15%",
+            bottom: 72 + 20, // Baseline position (72dp dock height + 20dp gap)
+            transform: [{ translateY: quickActionsShift }],
           },
         ]}
       >

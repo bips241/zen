@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { NativeModules, NativeEventEmitter, Platform } from "react-native";
+import { NativeModules, NativeEventEmitter, Platform, PixelRatio, AppState, AppStateStatus } from "react-native";
 import { useSafeAreaInsets as useSafeAreaInsetsRN } from "react-native-safe-area-context";
 
 const { SystemUIModule } = NativeModules;
@@ -44,6 +44,24 @@ const DEFAULT_INSETS: SystemInsets = {
   keyboardVisible: false,
   navBarVisible: false,
   statusBarVisible: false,
+};
+
+// Helper to convert physical pixels to DP
+const convertToDP = (insets: SystemInsets): SystemInsets => {
+  const scale = PixelRatio.get();
+  return {
+    navBarBottom: Math.round(insets.navBarBottom / scale),
+    navBarTop: Math.round(insets.navBarTop / scale),
+    navBarLeft: Math.round(insets.navBarLeft / scale),
+    navBarRight: Math.round(insets.navBarRight / scale),
+    statusBarTop: Math.round(insets.statusBarTop / scale),
+    systemBarsBottom: Math.round(insets.systemBarsBottom / scale),
+    systemBarsTop: Math.round(insets.systemBarsTop / scale),
+    keyboardHeight: Math.round(insets.keyboardHeight / scale),
+    keyboardVisible: insets.keyboardVisible,
+    navBarVisible: insets.navBarVisible,
+    statusBarVisible: insets.statusBarVisible,
+  };
 };
 
 /**
@@ -88,8 +106,9 @@ export function useSystemInsets() {
     const insetsListener = eventEmitter.addListener(
       "onWindowInsetsChanged",
       (data: SystemInsets) => {
-        setInsets(data);
-        cachedInsets = data;
+        const dpData = convertToDP(data);
+        setInsets(dpData);
+        cachedInsets = dpData;
       },
     );
 
@@ -97,8 +116,9 @@ export function useSystemInsets() {
     SystemUIModule.startMonitoring()
       .then(() => SystemUIModule.getCurrentInsets())
       .then((currentInsets: SystemInsets) => {
-        setInsets(currentInsets);
-        cachedInsets = currentInsets;
+        const dpInsets = convertToDP(currentInsets);
+        setInsets(dpInsets);
+        cachedInsets = dpInsets;
       })
       .catch((error: Error) => {
         console.error("[useSystemInsets] Failed to start monitoring:", error);
@@ -119,11 +139,23 @@ export function useSystemInsets() {
     }
     try {
       const currentInsets = await SystemUIModule.getCurrentInsets();
-      setInsets(currentInsets);
+      const dpInsets = convertToDP(currentInsets);
+      setInsets(dpInsets);
     } catch (error) {
       console.error("[useSystemInsets] Failed to refresh:", error);
     }
   }, []);
+
+  // Refresh on app active state (wake/lock cycle resume)
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active") {
+        refresh();
+      }
+    });
+    return () => sub.remove();
+  }, [refresh]);
 
   return {
     insets,
